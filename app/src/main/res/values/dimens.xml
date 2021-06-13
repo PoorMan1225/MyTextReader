@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="horizontalMargin">5dp</dimen>
+    <dimen name="verticalMargin">40dp</dimen>
+    <dimen name="textPadding">20dp</dimen>
+</resources>

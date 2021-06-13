@@ -2,44 +2,30 @@ package com.rjhwork.mycompany.fileopen
 
 import android.app.Activity
 import android.app.AlertDialog
-import android.app.ProgressDialog
 import android.content.Intent
-import android.graphics.Point
 import android.net.Uri
-import android.os.AsyncTask
+import android.os.*
 import androidx.appcompat.app.AppCompatActivity
-import android.os.Bundle
-import android.os.ParcelFileDescriptor
-import android.util.DisplayMetrics
-import android.util.Log
-import android.view.Display
-import android.view.Menu
-import android.view.MenuItem
-import android.widget.ProgressBar
-import android.widget.TextView
+import android.view.*
 import android.widget.Toast
-import android.widget.Toolbar
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.ViewModelProvider
-import androidx.viewpager2.widget.ViewPager2
 import com.rjhwork.mycompany.fileopen.databinding.ActivityMainBinding
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import java.io.BufferedReader
-import java.io.InputStream
 import java.io.InputStreamReader
 import java.lang.StringBuilder
-import java.nio.Buffer
+import java.util.*
 
-const val TAG = "MainActivity"
+private const val TAG = "MainActivity"
+private const val MESSAGE_TEXT_TYPE = 1001
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
-    private var data = mutableListOf<String>()
+    private var data = Collections.synchronizedList(mutableListOf<String>())
+    private lateinit var dialog: AlertDialog
 
-    private val textViewModel:TextViewModel by lazy {
+    private val textViewModel: TextViewModel by lazy {
         ViewModelProvider(this).get(TextViewModel::class.java)
     }
 
@@ -47,32 +33,43 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = DataBindingUtil.setContentView(this, R.layout.activity_main)
 
-        getDisplaySize()
+        getActivitySize()
+        initDialog()
     }
 
-    private fun getDisplaySize() {
-        val outMetrics = DisplayMetrics()
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            val display = this.display
-            display?.getRealMetrics(outMetrics)
-            calculateWidthHeight(display)
-        } else {
-            @Suppress("DEPRECATION")
-            val display = this.windowManager.defaultDisplay
-            @Suppress("DEPRECATION")
-            display.getMetrics(outMetrics)
-            calculateWidthHeight(display)
+    private fun getActivitySize() {
+        binding.root.viewTreeObserver.addOnGlobalLayoutListener(object :
+            ViewTreeObserver.OnGlobalLayoutListener {
+            override fun onGlobalLayout() {
+                binding.root.viewTreeObserver.removeOnGlobalLayoutListener(this)
+                val heightOffset = convertDPtoPixel(90)
+                val widthOffset = convertDPtoPixel(18)
+
+                textViewModel.aWidth = binding.root.width - widthOffset
+                textViewModel.aHeight = binding.root.height - heightOffset
+            }
+        })
+    }
+
+    private fun convertDPtoPixel(dp: Int): Int {
+        val scale = this.resources.displayMetrics.density
+        return (dp * scale + 0.5f).toInt()
+    }
+
+    private fun initDialog() {
+        dialog = AlertDialog.Builder(this@MainActivity)
+            .setView(R.layout.progress)
+            .setCancelable(false)
+            .create()
+    }
+
+    private val mHandler = object : Handler(Looper.getMainLooper()) {
+        override fun handleMessage(msg: Message) {
+            if (msg.what == MESSAGE_TEXT_TYPE) {
+                displayPager()
+                dialog.dismiss()
+            }
         }
-    }
-
-    private fun calculateWidthHeight(display: Display?) {
-        display ?: return
-
-        val textPix = display.width.div(12)
-        val maxLine = display.height.div(12+20)
-
-        textViewModel.textPX = textPix
-        textViewModel.maxLine = maxLine
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -89,7 +86,7 @@ class MainActivity : AppCompatActivity() {
 
     // 암시적 인텐트로 콘텐츠 프로바이더에 있는 파일의 액션과
     // 타입을 지정한 뒤에 request 보낸다.
-    fun performFileSearch() {
+    private fun performFileSearch() {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type = "text/*"
@@ -99,68 +96,111 @@ class MainActivity : AppCompatActivity() {
 
     // 여기서는 요청된 데이터가 길이가 길기 때문에 라인을 백그라운드 에서
     // 파싱해서 작동하도록 한다.
-    val requestFileDocument =
+    private val requestFileDocument =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == Activity.RESULT_OK) {
                 if (result.data == null) {
                     Toast.makeText(this, "데이터가 없습니다.", Toast.LENGTH_SHORT).show()
                 } else {
                     val uri = result.data!!.data
-//                    binding.textView.text = showText(uri!!)
-                    TextAsyncTask().execute(uri!!)
+                    dialog.show()
+
+                    val thread = TextSplitThread()
+                    thread.apply {
+                        this.uri = uri!!
+                        start()
+                    }
                 }
             }
         }
 
-    inner class TextAsyncTask : AsyncTask<Uri, Int, String>() {
-        val sb = StringBuilder()
-        var dialog: AlertDialog = AlertDialog.Builder(this@MainActivity)
-            .setView(R.layout.progress)
-            .setCancelable(false)
-            .create()
+    inner class TextSplitThread : Thread() {
+        lateinit var uri: Uri
 
-        override fun onPreExecute() {
-            super.onPreExecute()
+        override fun run() {
+            Looper.prepare()
             dialog.show()
-        }
 
-        override fun doInBackground(vararg uri: Uri): String {
-            applicationContext.contentResolver.openInputStream(uri[0]).use { inputStream ->
+            val resultList = mutableListOf<String>()
+            val saveList = mutableListOf<String>()
+            val sb = StringBuilder()
+
+            applicationContext.contentResolver.openInputStream(uri).use { inputStream ->
                 BufferedReader(InputStreamReader(inputStream)).use { reader ->
                     var line: String? = reader.readLine()
+                    var count: Int
+
                     while (line != null) {
-                        sb.append(line)
+                        if (saveList.size > 0) {
+                            resultList += saveList
+                            saveList.clear()
+                        }
+                        val lineList = checkAddLine(line)
+                        resultList += lineList
+
+                        count = resultList.size
+                        if (count < textViewModel.maxLine) {
+                            line = reader.readLine()
+                            continue
+                        } else {
+                            var i = 0
+                            val j = textViewModel.maxLine - 1
+
+                            while (true) {
+                                (i..(j + i)).forEach {
+                                    sb.append(resultList[it])
+                                }
+                                data.add(sb.toString())
+                                sb.clear()
+
+                                count -= textViewModel.maxLine
+                                i += j + 1
+                                if (count < textViewModel.maxLine) {
+                                    break
+                                }
+                            }
+                            (i until resultList.size).forEach {
+                                saveList.add(resultList[it])
+                            }
+                            resultList.clear()
+                        }
                         line = reader.readLine()
                     }
                 }
             }
-            return sb.toString()
-        }
-
-        override fun onPostExecute(result: String?) {
-
-            dialog.dismiss()
-            initData(result)
+            val message = mHandler.obtainMessage(MESSAGE_TEXT_TYPE)
+            mHandler.sendMessage(message)
         }
     }
 
-    private fun initData(result: String?) {
-        result ?: return
+    private fun checkAddLine(line: String): MutableList<String> {
+        val sb = StringBuilder()
+        val lineList = mutableListOf<String>()
+        var count = 0
 
-        var i = 0
-        var j = textViewModel.textPX*textViewModel.maxLine
-
-        while (true) {
-            if(i + j >= result.length-1) {
-                data.add(result.slice(IntRange(i, result.length-1)))
-                break
+        line.forEachIndexed { i, c ->
+            count++
+            if (c == '\n') {
+                sb.append(c)
+                lineList.add(sb.toString())
+                count = 0
+                sb.clear()
+            } else {
+                if(i == line.length-1) {
+                    sb.append(c).append("\n")
+                    lineList.add(sb.toString())
+                    return@forEachIndexed
+                }
+                sb.append(c)
             }
 
-            val slice = result.slice(IntRange(i, j+i)) // abc
-            data.add(slice)
-            i += j+1
+            if (count == textViewModel.textCount) {
+                count = 0
+                lineList.add(sb.toString())
+                sb.clear()
+            }
         }
-        displayPager()
+        return lineList
     }
 
     private fun displayPager() {

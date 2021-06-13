@@ -1,6 +1,7 @@
 package com.rjhwork.mycompany.fileopen
 
 import android.content.Context
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.databinding.DataBindingUtil
@@ -13,6 +14,7 @@ class TextPageAdapter(private val context: Context, private val textData: Mutabl
 
     class ViewHolder(private val binding: ItemTextBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(data:String) {
+
             binding.textView.text = data
         }
     }
