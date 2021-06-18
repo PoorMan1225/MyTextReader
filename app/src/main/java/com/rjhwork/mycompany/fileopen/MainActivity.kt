@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.*
+import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import android.view.*
 import android.widget.Toast
@@ -14,6 +15,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.ViewModelProvider
+import androidx.viewpager2.widget.ViewPager2
 import com.hbisoft.pickit.PickiT
 import com.hbisoft.pickit.PickiTCallbacks
 import com.rjhwork.mycompany.fileopen.databinding.ActivityMainBinding
@@ -22,14 +24,17 @@ import java.lang.StringBuilder
 import java.util.*
 
 private const val TAG = "MainActivity"
-private const val MESSAGE_TEXT_TYPE = 1001
 
 class MainActivity : AppCompatActivity(), PickiTCallbacks {
     private lateinit var binding: ActivityMainBinding
-    private var data = mutableListOf<String>()
+    private var data = Collections.synchronizedList(mutableListOf<String>())
+    private val searchIndex = Collections.synchronizedList(mutableListOf<Int>())
+
     private lateinit var dialog: AlertDialog
     private lateinit var uri: Uri
-    private lateinit var pickit:PickiT
+    private lateinit var pickit: PickiT
+
+    private var adapter: TextPageAdapter? = null
 
     private val textViewModel: TextViewModel by lazy {
         ViewModelProvider(this).get(TextViewModel::class.java)
@@ -37,17 +42,21 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = DataBindingUtil.setContentView(this, R.layout.activity_main)
-        pickit = PickiT(this, this, this)
+        init()
         getActivitySize()
         initDialog()
-        firstRequestPermission()
+    }
+
+    private fun init() {
+        binding = DataBindingUtil.setContentView(this, R.layout.activity_main)
+        pickit = PickiT(this, this, this)
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN)
     }
 
     // 최초 퍼미션 요청
-    private fun firstRequestPermission() {
+    private fun requestPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            requestMultiPermission.launch(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE))
+            requestPermission.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
     }
 
@@ -56,8 +65,51 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
             .setTitle("권한이 필요합니다.")
             .setMessage("파일에 접근하기 위한 권한이 필요합니다.")
             .setPositiveButton("동의하기") { _, _ ->
-                requestMultiPermission.launch(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE))
+                requestPermission()
             }.setNegativeButton("취소하기") { _, _ -> }
+    }
+
+    private fun startSearchThread(length: Int, searchString: String, type: String) {
+        val thread = SearchThread(textViewModel, data, searchIndex, mHandler)
+        thread.apply {
+            this.type = type
+            this.searchLength = length
+            this.searchString = searchString
+        }
+        thread.start()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        binding.search.setOnClickListener {
+            Log.d(TAG, "currentItem : ${binding.viewPager.currentItem}")
+        }
+
+        binding.forward.setOnClickListener {
+            startSearching("forward")
+        }
+
+        binding.back.setOnClickListener {
+            startSearching("back")
+        }
+        binding.viewPager.registerOnPageChangeCallback(pageChangeListener)
+    }
+
+    private fun startSearching(key: String) {
+        mHandler.postDelayed({
+            if (binding.edtSearch.text.isNotEmpty()) {
+                val searchText = binding.edtSearch.text
+                startSearchThread(searchText.length, searchText.toString(), key)
+            } else {
+                Toast.makeText(this, "검색어를 입력해주세요.", Toast.LENGTH_SHORT).show()
+            }
+        }, 10)
+    }
+
+    private val pageChangeListener = object : ViewPager2.OnPageChangeCallback() {
+        override fun onPageSelected(position: Int) {
+            textViewModel.pagePosition = position
+        }
     }
 
     private fun getActivitySize() {
@@ -88,10 +140,34 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
 
     private val mHandler = object : Handler(Looper.getMainLooper()) {
         override fun handleMessage(msg: Message) {
-            if (msg.what == MESSAGE_TEXT_TYPE) {
+            if (msg.what == TextSplitThread.MESSAGE_TEXT_TYPE) {
                 displayPager()
+                Log.d(TAG, "data size: ${data.size}")
                 dialog.dismiss()
+            } else if (msg.what == SearchThread.INDEX_FORWARD_MESSAGE) {
+                if (searchIndex.isEmpty()) {
+                    Toast.makeText(applicationContext, "찾는 값이 없습니다.", Toast.LENGTH_SHORT).show()
+                    return
+                }
+                updateAdapter(SearchThread.INDEX_FORWARD_MESSAGE)
+            } else if (msg.what == SearchThread.INDEX_BACK_MESSAGE) {
+                if (searchIndex.isEmpty()) {
+                    Toast.makeText(applicationContext, "찾는 값이 없습니다.", Toast.LENGTH_SHORT).show()
+                    return
+                }
+                updateAdapter(SearchThread.INDEX_BACK_MESSAGE)
             }
+        }
+    }
+
+    private fun updateAdapter(type: Int) {
+        Log.d(TAG, "searchIndex : $searchIndex")
+        val offset = if (type == SearchThread.INDEX_FORWARD_MESSAGE) 1 else -1
+        binding.viewPager.currentItem = textViewModel.pagePosition - offset
+        if (binding.viewPager.currentItem == textViewModel.pagePosition - offset) {
+            val pair = Pair(binding.edtSearch.text.length, searchIndex)
+            adapter?.keywordListener = { pair }
+            adapter?.notifyItemChanged(textViewModel.pagePosition - offset, "search")
         }
     }
 
@@ -119,7 +195,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
                     Manifest.permission.READ_EXTERNAL_STORAGE
                 ) -> showPermissionContextPopup()
                 else -> {
-                    requestMultiPermission.launch(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE))
+                    requestPermission()
                 }
             }
         }
@@ -134,7 +210,6 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type = "text/*"
-
         }
         requestFileDocument.launch(intent)
     }
@@ -158,140 +233,24 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
             }
         }
 
-    private val requestMultiPermission =
-        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
-            permissions.entries.forEach {
-                if(it.value.not()) {
-                    Toast.makeText(this, "권한이 부여되지 않았습니다.", Toast.LENGTH_SHORT).show()
-                    return@registerForActivityResult
-                }
+    private val requestPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { result ->
+            if (result) {
+                performFileSearch()
+            } else {
+                Toast.makeText(this, "권한이 거부 되었습니다.", Toast.LENGTH_SHORT).show()
             }
-            performFileSearch()
         }
 
     private fun startThread(encoding: String) {
-        val thread = TextSplitThread(uri, encoding)
+        val thread =
+            TextSplitThread(uri, encoding, applicationContext, textViewModel, data, mHandler)
+        dialog.show()
         thread.start()
     }
 
-    inner class TextSplitThread(private val uri: Uri, private val encoding: String) : Thread() {
-
-        override fun run() {
-            Looper.prepare()
-            dialog.show()
-
-            val resultList = mutableListOf<String>()
-            val saveList = mutableListOf<String>()
-            val sb = StringBuilder()
-
-            applicationContext.contentResolver.openInputStream(uri).use { inputStream ->
-
-                BufferedReader(InputStreamReader(inputStream, encoding)).use { reader ->
-                    var line: String? = reader.readLine()
-                    var count: Int
-
-                    while (line != null) {
-                        addSaveListToResultList(saveList, resultList)
-                        // text 문서의 한 라인을 화면의 넓이에 맞기 파싱한 라인 list 를
-                        // 결과 리스트에 더한다.
-                        addLineListToResultList(line, resultList)
-
-                        count = resultList.size
-                        // 결과 리스트의 사이즈가 화면 높이의 maxLine 보다 더 작은 경우
-                        if (count < textViewModel.maxLine) {
-                            line = reader.readLine()
-                            continue
-                        } else {
-                            // 결과 리스트의 사이즈가 화면 높이의 maxLine 보다 더 큰 경우
-                            // maxLine 에 맞게 잘라준다.
-                            splitHeightLine(sb, resultList, count, saveList)
-                        }
-                        line = reader.readLine()
-                    }
-                }
-            }
-            val message = mHandler.obtainMessage(MESSAGE_TEXT_TYPE)
-            mHandler.sendMessage(message)
-        }
-
-
-        private fun splitHeightLine(
-            sb: StringBuilder,
-            resultList: MutableList<String>,
-            count: Int,
-            saveList: MutableList<String>
-        ) {
-            var count1 = count
-            var i = 0
-            val j = textViewModel.maxLine - 1
-
-            while (true) {
-                (i..(j + i)).forEach {
-                    sb.append(resultList[it])
-                }
-                data.add(sb.toString())
-                sb.clear()
-
-                count1 -= textViewModel.maxLine
-                i += j + 1
-                if (count1 < textViewModel.maxLine) {
-                    break
-                }
-            }
-            (i until resultList.size).forEach {
-                saveList.add(resultList[it])
-            }
-            resultList.clear()
-        }
-
-        private fun addLineListToResultList(line: String, resultList: MutableList<String>) {
-            val lineList = checkTextCountAddLineList(line)
-            resultList += lineList
-        }
-
-        private fun addSaveListToResultList(saveList: MutableList<String>, resultList: MutableList<String>) {
-            if (saveList.size > 0) {
-                resultList += saveList
-                saveList.clear()
-            }
-        }
-    }
-
-    // 문자를 한글자 씩 확인해서 width 에 맞게 textCount 센후에 해당 문자 한줄씩
-    // lineList 에 넣어주는 함수
-    private fun checkTextCountAddLineList(line: String): MutableList<String> {
-        val sb = StringBuilder()
-        val lineList = mutableListOf<String>()
-        var count = 0
-
-        line.forEachIndexed { i, c ->
-            count++
-            if (c == '\n') {
-                sb.append(c)
-                lineList.add(sb.toString())
-                count = 0
-                sb.clear()
-            } else {
-                if (i == line.length - 1) {
-                    sb.append(c).append("\n")
-                    lineList.add(sb.toString())
-                    return@forEachIndexed
-                }
-                sb.append(c)
-            }
-
-            if (count == textViewModel.textCount) {
-                count = 0
-                sb.append("\n")
-                lineList.add(sb.toString())
-                sb.clear()
-            }
-        }
-        return lineList
-    }
-
     private fun displayPager() {
-        val adapter = TextPageAdapter(this@MainActivity, data)
+        adapter = TextPageAdapter(this@MainActivity, data)
         binding.viewPager.adapter = adapter
     }
 
@@ -308,11 +267,14 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         wasSuccessful: Boolean,
         Reason: String?
     ) {
-        if(wasSuccessful) {
+        if (wasSuccessful) {
             val file = File(path)
             val encoding = UniversalDetectorUtil.findFileEncoding(file)
-            if(encoding.isNotEmpty()) {
+            if (encoding.isNotEmpty()) {
                 startThread(encoding)
+            }else {
+                Toast.makeText(this, "인코딩 실패!", Toast.LENGTH_SHORT).show()
+                return
             }
         }
     }
@@ -324,9 +286,8 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
 
     override fun onDestroy() {
         super.onDestroy()
-        if(!isChangingConfigurations) {
+        if (!isChangingConfigurations) {
             pickit.deleteTemporaryFile(this)
         }
     }
-
 }

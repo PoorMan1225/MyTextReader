@@ -27,4 +27,8 @@ class TextViewModel : ViewModel() {
             val y = floor((yRatio / aHeight) * 1000) / 1000
             maxLine = (aHeight * 0.0078).toInt()
         }
+
+    var pagePosition = 0
+
+    var searchTextLength = 0
 }

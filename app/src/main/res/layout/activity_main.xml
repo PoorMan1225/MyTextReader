@@ -14,5 +14,53 @@
             android:id="@+id/viewPager"
             android:layout_width="match_parent"
             android:layout_height="match_parent"/>
+
+        <LinearLayout
+            android:orientation="vertical"
+            android:background="#73000000"
+            android:layout_gravity="bottom"
+            android:layout_width="match_parent"
+            android:layout_height="150dp">
+
+            <LinearLayout
+                android:padding="12dp"
+                android:weightSum="13"
+                android:orientation="horizontal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <EditText
+                    android:layout_weight="10"
+                    android:id="@+id/edtSearch"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    />
+
+                <ImageButton
+                    android:layout_weight="1"
+                    android:background="?attr/selectableItemBackground"
+                    android:id="@+id/search"
+                    android:padding="30dp"
+                    android:src="@drawable/ic_baseline_search_24"
+                    android:layout_width="30dp"
+                    android:layout_height="50dp"/>
+
+                <ImageButton
+                    android:layout_weight="1"
+                    android:id="@+id/back"
+                    android:background="?attr/selectableItemBackground"
+                    android:layout_width="30dp"
+                    android:layout_height="50dp"
+                    android:src="@drawable/ic_baseline_arrow_back_24"/>
+
+                <ImageButton
+                    android:layout_weight="1"
+                    android:id="@+id/forward"
+                    android:background="?attr/selectableItemBackground"
+                    android:layout_width="30dp"
+                    android:layout_height="50dp"
+                    android:src="@drawable/ic_baseline_arrow_forward_24"/>
+            </LinearLayout>
+        </LinearLayout>
     </FrameLayout>
 </layout>
