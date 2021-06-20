@@ -53,21 +53,23 @@ class TextPageAdapter(val context: Context, private val textData: MutableList<St
                         val pair = keywordListener?.invoke()
 
                         pair ?: return
+
                         val list = pair.second
 
                         val spannable = SpannableStringBuilder(data)
-                        spannable.setSpan(
-                            ForegroundColorSpan(Color.RED),
-                            list[0],
-                            list[0] + pair.first,
-                            Spannable.SPAN_EXCLUSIVE_INCLUSIVE
-                        )
+                        pair.second.forEachIndexed { i, _ ->
+                            spannable.setSpan(
+                                ForegroundColorSpan(Color.RED),
+                                list[i],
+                                list[i] + pair.first,
+                                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                            )
+                        }
                         holder.bind(spannable)
                     }
                 }
             }
         }
     }
-
     override fun getItemCount() = textData.size
 }

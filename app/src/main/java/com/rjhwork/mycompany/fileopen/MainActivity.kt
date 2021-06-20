@@ -28,7 +28,8 @@ private const val TAG = "MainActivity"
 class MainActivity : AppCompatActivity(), PickiTCallbacks {
     private lateinit var binding: ActivityMainBinding
     private var data = Collections.synchronizedList(mutableListOf<String>())
-    private val searchIndex = Collections.synchronizedList(mutableListOf<Int>())
+    private val searchIndexList = mutableListOf<Int>()
+    private lateinit var threadPoolManager: ThreadPoolManager
 
     private lateinit var dialog: AlertDialog
     private lateinit var uri: Uri
@@ -48,6 +49,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     }
 
     private fun init() {
+        threadPoolManager = ThreadPoolManager.getInstance()
         binding = DataBindingUtil.setContentView(this, R.layout.activity_main)
         pickit = PickiT(this, this, this)
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN)
@@ -60,6 +62,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         }
     }
 
+    // 권한 팝업.
     private fun showPermissionContextPopup() {
         AlertDialog.Builder(this)
             .setTitle("권한이 필요합니다.")
@@ -70,19 +73,30 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     }
 
     private fun startSearchThread(length: Int, searchString: String, type: String) {
-        val thread = SearchThread(textViewModel, data, searchIndex, mHandler)
-        thread.apply {
+        val searchTask = SearchTask(textViewModel, data, searchIndexList)
+        searchTask.apply {
             this.type = type
             this.searchLength = length
             this.searchString = searchString
         }
-        thread.start()
+        val future = threadPoolManager.executorService.submit(searchTask)
+
+        try {
+            future.get()
+            if(searchIndexList.isEmpty()) {
+                Toast.makeText(this, "찾는 값이 없습니다. ", Toast.LENGTH_SHORT).show()
+                return
+            }
+            updateAdapter(type)
+        } catch (e: Exception) {
+            Log.e(TAG, "future error : ${e.message}")
+        }
     }
 
     override fun onStart() {
         super.onStart()
         binding.search.setOnClickListener {
-            Log.d(TAG, "currentItem : ${binding.viewPager.currentItem}")
+            startSearching("search")
         }
 
         binding.forward.setOnClickListener {
@@ -96,14 +110,12 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     }
 
     private fun startSearching(key: String) {
-        mHandler.postDelayed({
-            if (binding.edtSearch.text.isNotEmpty()) {
-                val searchText = binding.edtSearch.text
-                startSearchThread(searchText.length, searchText.toString(), key)
-            } else {
-                Toast.makeText(this, "검색어를 입력해주세요.", Toast.LENGTH_SHORT).show()
-            }
-        }, 10)
+        if (binding.edtSearch.text.isNotEmpty()) {
+            val searchText = binding.edtSearch.text
+            startSearchThread(searchText.length, searchText.toString(), key)
+        } else {
+            Toast.makeText(this, "검색어를 입력해주세요.", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private val pageChangeListener = object : ViewPager2.OnPageChangeCallback() {
@@ -140,34 +152,37 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
 
     private val mHandler = object : Handler(Looper.getMainLooper()) {
         override fun handleMessage(msg: Message) {
-            if (msg.what == TextSplitThread.MESSAGE_TEXT_TYPE) {
-                displayPager()
-                Log.d(TAG, "data size: ${data.size}")
-                dialog.dismiss()
-            } else if (msg.what == SearchThread.INDEX_FORWARD_MESSAGE) {
-                if (searchIndex.isEmpty()) {
-                    Toast.makeText(applicationContext, "찾는 값이 없습니다.", Toast.LENGTH_SHORT).show()
-                    return
+            when (msg.what) {
+                TextSplitThread.MESSAGE_TEXT_TYPE -> {
+                    displayPager()
+                    Log.d(TAG, "data size: ${data.size}")
+                    dialog.dismiss()
                 }
-                updateAdapter(SearchThread.INDEX_FORWARD_MESSAGE)
-            } else if (msg.what == SearchThread.INDEX_BACK_MESSAGE) {
-                if (searchIndex.isEmpty()) {
-                    Toast.makeText(applicationContext, "찾는 값이 없습니다.", Toast.LENGTH_SHORT).show()
-                    return
-                }
-                updateAdapter(SearchThread.INDEX_BACK_MESSAGE)
             }
         }
     }
 
-    private fun updateAdapter(type: Int) {
-        Log.d(TAG, "searchIndex : $searchIndex")
-        val offset = if (type == SearchThread.INDEX_FORWARD_MESSAGE) 1 else -1
+    private fun updateAdapter(type: String) {
+        Log.d(TAG, "searchIndex : $searchIndexList")
+        if(type == "search") {
+            val pair = Pair(binding.edtSearch.text.length, searchIndexList)
+            adapter?.apply {
+                keywordListener = { pair }
+                notifyItemChanged(textViewModel.pagePosition, "search")
+            }
+            return
+        }
+
+        val offset = if (type == "forward") 1 else -1
+
         binding.viewPager.currentItem = textViewModel.pagePosition - offset
         if (binding.viewPager.currentItem == textViewModel.pagePosition - offset) {
-            val pair = Pair(binding.edtSearch.text.length, searchIndex)
-            adapter?.keywordListener = { pair }
-            adapter?.notifyItemChanged(textViewModel.pagePosition - offset, "search")
+            val pair = Pair(binding.edtSearch.text.length, searchIndexList)
+            adapter?.apply {
+                keywordListener = { pair }
+                notifyItemChanged(textViewModel.pagePosition - offset, "search")
+                textViewModel.pagePosition += offset
+            }
         }
     }
 
@@ -268,11 +283,13 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         Reason: String?
     ) {
         if (wasSuccessful) {
+            path ?: return
+
             val file = File(path)
             val encoding = UniversalDetectorUtil.findFileEncoding(file)
             if (encoding.isNotEmpty()) {
                 startThread(encoding)
-            }else {
+            } else {
                 Toast.makeText(this, "인코딩 실패!", Toast.LENGTH_SHORT).show()
                 return
             }
@@ -289,5 +306,6 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         if (!isChangingConfigurations) {
             pickit.deleteTemporaryFile(this)
         }
+        threadPoolManager.executorService.isShutdown
     }
 }

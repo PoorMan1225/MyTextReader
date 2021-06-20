@@ -29,6 +29,6 @@ class TextViewModel : ViewModel() {
         }
 
     var pagePosition = 0
-
-    var searchTextLength = 0
+    @Synchronized get
+    @Synchronized set
 }
