@@ -1,4 +1,4 @@
-package com.rjhwork.mycompany.fileopen
+package com.rjhwork.mycompany.fileopen.viewmodel
 
 import androidx.lifecycle.ViewModel
 import kotlin.math.floor
@@ -29,6 +29,6 @@ class TextViewModel : ViewModel() {
         }
 
     var pagePosition = 0
-    @Synchronized get
-    @Synchronized set
+
+    var maxPointPage = 0
 }

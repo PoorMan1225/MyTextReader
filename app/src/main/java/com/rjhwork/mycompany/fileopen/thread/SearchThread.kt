@@ -1,32 +1,45 @@
-package com.rjhwork.mycompany.fileopen
+package com.rjhwork.mycompany.fileopen.thread
 
-class SearchTask(
+import android.os.Handler
+import android.os.Looper
+import android.os.Message
+import com.rjhwork.mycompany.fileopen.viewmodel.TextViewModel
+
+class SearchThread(
     private val textViewModel: TextViewModel,
     private val data: MutableList<String>,
     private var indexList: MutableList<Int>,
-):Runnable {
+    private val handler: Handler
+) : Thread() {
+
     lateinit var type: String
     var searchLength: Int = 0
     lateinit var searchString: String
 
     override fun run() {
+        Looper.prepare()
+        var message: Message? = null
 
         if (indexList.isNotEmpty()) {
             indexList.clear()
         }
 
         when (type) {
-            "search" -> currentSearch()
-            "forward" -> forwardProcess()
-            "back" -> backProcess()
-        }
-        Thread.sleep(10)
-    }
+            "search" -> {
 
-    private fun currentSearch() {
-        val list =  getIndexSearchData(data[textViewModel.pagePosition], searchLength, searchString) ?: return
-        if(list.isNotEmpty()) {
-            indexList += list
+            }
+            "forward" -> {
+                forwardProcess()
+                message = handler.obtainMessage(INDEX_FORWARD_MESSAGE)
+            }
+            "back" -> {
+                backProcess()
+                message = handler.obtainMessage(INDEX_BACK_MESSAGE)
+            }
+        }
+        sleep(10)
+        message?.let {
+            handler.sendMessage(it)
         }
     }
 
@@ -86,4 +99,11 @@ class SearchTask(
             return null
         }
     }
+
+    companion object {
+        const val INDEX_FORWARD_MESSAGE = 1002
+        const val INDEX_BACK_MESSAGE = 1003
+
+    }
 }
+

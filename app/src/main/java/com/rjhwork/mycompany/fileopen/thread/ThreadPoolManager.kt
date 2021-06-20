@@ -1,4 +1,4 @@
-package com.rjhwork.mycompany.fileopen
+package com.rjhwork.mycompany.fileopen.thread
 
 import java.util.concurrent.Executors
 
@@ -6,9 +6,9 @@ class ThreadPoolManager private constructor() {
     val executorService = Executors.newSingleThreadExecutor()
 
     companion object {
-        private var instance:ThreadPoolManager? = null
+        private var instance: ThreadPoolManager? = null
 
-        fun getInstance():ThreadPoolManager {
+        fun getInstance(): ThreadPoolManager {
             if(instance == null) {
                 instance = ThreadPoolManager()
             }

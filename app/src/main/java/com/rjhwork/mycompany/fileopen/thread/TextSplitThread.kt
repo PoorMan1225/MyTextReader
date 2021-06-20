@@ -1,9 +1,10 @@
-package com.rjhwork.mycompany.fileopen
+package com.rjhwork.mycompany.fileopen.thread
 
 import android.content.Context
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import com.rjhwork.mycompany.fileopen.viewmodel.TextViewModel
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.lang.StringBuilder
@@ -11,7 +12,7 @@ import java.lang.StringBuilder
 class TextSplitThread(private val uri: Uri,
                       private val encoding: String,
                       private val context: Context,
-                      private val textViewModel:TextViewModel,
+                      private val textViewModel: TextViewModel,
                       private val data:MutableList<String>,
                       private val handler:Handler
                       ) : Thread() {
@@ -37,12 +38,20 @@ class TextSplitThread(private val uri: Uri,
                     addSaveListToResultList(saveList, resultList)
                     // text 문서의 한 라인을 화면의 넓이에 맞기 파싱한 라인 list 를
                     // 결과 리스트에 더한다.
-                    addLineListToResultList(line, resultList,textViewModel)
+                    addLineListToResultList(line, resultList, textViewModel)
 
                     count = resultList.size
                     // 결과 리스트의 사이즈가 화면 높이의 maxLine 보다 더 작은 경우
                     if (count < textViewModel.maxLine) {
                         line = reader.readLine()
+                        // 마지막일 경우 add 하고 끝.
+                        if(line == null) {
+                            resultList.forEachIndexed { i, _ ->
+                                sb.append(resultList[i])
+                            }
+                            data.add(sb.toString())
+                            break
+                        }
                         continue
                     } else {
                         // 결과 리스트의 사이즈가 화면 높이의 maxLine 보다 더 큰 경우

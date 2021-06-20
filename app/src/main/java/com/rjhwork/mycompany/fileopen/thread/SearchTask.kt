@@ -1,45 +1,38 @@
-package com.rjhwork.mycompany.fileopen
+package com.rjhwork.mycompany.fileopen.thread
 
-import android.os.Handler
-import android.os.Looper
-import android.os.Message
-import java.util.*
+import com.rjhwork.mycompany.fileopen.viewmodel.TextViewModel
 
-class SearchThread(
+class SearchTask(
     private val textViewModel: TextViewModel,
     private val data: MutableList<String>,
     private var indexList: MutableList<Int>,
-    private val handler: Handler
-) : Thread() {
-
+):Runnable {
     lateinit var type: String
     var searchLength: Int = 0
     lateinit var searchString: String
 
     override fun run() {
-        Looper.prepare()
-        var message: Message? = null
 
         if (indexList.isNotEmpty()) {
             indexList.clear()
         }
 
         when (type) {
-            "search" -> {
-
-            }
-            "forward" -> {
-                forwardProcess()
-                message = handler.obtainMessage(INDEX_FORWARD_MESSAGE)
-            }
-            "back" -> {
-                backProcess()
-                message = handler.obtainMessage(INDEX_BACK_MESSAGE)
-            }
+            "search" -> currentSearch()
+            "forward" -> forwardProcess()
+            "back" -> backProcess()
         }
-        sleep(10)
-        message?.let {
-            handler.sendMessage(it)
+        Thread.sleep(10)
+    }
+
+    private fun currentSearch() {
+        if (textViewModel.pagePosition < 0) {
+            textViewModel.pagePosition = 0
+        }
+
+        val list = getIndexSearchData(data[textViewModel.pagePosition], searchLength, searchString) ?: return
+        if(list.isNotEmpty()) {
+            indexList += list
         }
     }
 
@@ -48,7 +41,7 @@ class SearchThread(
             textViewModel.pagePosition = data.size - 1
         }
 
-        for (i in textViewModel.pagePosition downTo 0) {
+        for (i in textViewModel.pagePosition.dec() downTo 0) {
             textViewModel.pagePosition--
             val list = getIndexSearchData(data[i], searchLength, searchString) ?: continue
 
@@ -64,7 +57,7 @@ class SearchThread(
             textViewModel.pagePosition = 0
         }
 
-        for (i in textViewModel.pagePosition until data.size) {
+        for (i in textViewModel.pagePosition.inc() until data.size) {
             textViewModel.pagePosition++
             val list = getIndexSearchData(data[i], searchLength, searchString) ?: continue
 
@@ -99,11 +92,4 @@ class SearchThread(
             return null
         }
     }
-
-    companion object {
-        const val INDEX_FORWARD_MESSAGE = 1002
-        const val INDEX_BACK_MESSAGE = 1003
-
-    }
 }
-

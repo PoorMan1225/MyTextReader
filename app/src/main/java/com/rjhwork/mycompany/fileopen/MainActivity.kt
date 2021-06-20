@@ -10,17 +10,24 @@ import android.os.*
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import android.view.*
+import android.widget.SeekBar
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.view.isVisible
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.ViewModelProvider
 import androidx.viewpager2.widget.ViewPager2
 import com.hbisoft.pickit.PickiT
 import com.hbisoft.pickit.PickiTCallbacks
+import com.rjhwork.mycompany.fileopen.adapter.TextPageAdapter
 import com.rjhwork.mycompany.fileopen.databinding.ActivityMainBinding
+import com.rjhwork.mycompany.fileopen.thread.SearchTask
+import com.rjhwork.mycompany.fileopen.thread.TextSplitThread
+import com.rjhwork.mycompany.fileopen.thread.ThreadPoolManager
+import com.rjhwork.mycompany.fileopen.util.UniversalDetectorUtil
+import com.rjhwork.mycompany.fileopen.viewmodel.TextViewModel
 import java.io.*
-import java.lang.StringBuilder
 import java.util.*
 
 private const val TAG = "MainActivity"
@@ -34,8 +41,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     private lateinit var dialog: AlertDialog
     private lateinit var uri: Uri
     private lateinit var pickit: PickiT
-
-    private var adapter: TextPageAdapter? = null
+    private lateinit var adapter: TextPageAdapter
 
     private val textViewModel: TextViewModel by lazy {
         ViewModelProvider(this).get(TextViewModel::class.java)
@@ -44,8 +50,15 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         init()
+        initSeekBar()
         getActivitySize()
         initDialog()
+    }
+
+    private fun initSeekBar() {
+        if(data.isNotEmpty()) {
+            binding.seekBar.max = data.size-1
+        }
     }
 
     private fun init() {
@@ -83,7 +96,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
 
         try {
             future.get()
-            if(searchIndexList.isEmpty()) {
+            if (searchIndexList.isEmpty()) {
                 Toast.makeText(this, "찾는 값이 없습니다. ", Toast.LENGTH_SHORT).show()
                 return
             }
@@ -107,6 +120,19 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
             startSearching("back")
         }
         binding.viewPager.registerOnPageChangeCallback(pageChangeListener)
+
+        binding.seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {}
+
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {
+            }
+
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                seekBar ?: return
+
+                binding.viewPager.currentItem = seekBar.progress
+            }
+        })
     }
 
     private fun startSearching(key: String) {
@@ -121,6 +147,13 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     private val pageChangeListener = object : ViewPager2.OnPageChangeCallback() {
         override fun onPageSelected(position: Int) {
             textViewModel.pagePosition = position
+            binding.seekBar.progress = position
+            binding.pageTextView.text = getString(R.string.page_text, position.toString(), (data.size-1).toString())
+
+            if(textViewModel.maxPointPage < position) {
+                textViewModel.maxPointPage = position
+            }
+            Log.d(TAG, "position : $position")
         }
     }
 
@@ -155,6 +188,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
             when (msg.what) {
                 TextSplitThread.MESSAGE_TEXT_TYPE -> {
                     displayPager()
+                    initSeekBar()
                     Log.d(TAG, "data size: ${data.size}")
                     dialog.dismiss()
                 }
@@ -164,26 +198,19 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
 
     private fun updateAdapter(type: String) {
         Log.d(TAG, "searchIndex : $searchIndexList")
-        if(type == "search") {
+        if (type == "search") {
             val pair = Pair(binding.edtSearch.text.length, searchIndexList)
-            adapter?.apply {
+            adapter.apply {
                 keywordListener = { pair }
                 notifyItemChanged(textViewModel.pagePosition, "search")
             }
             return
         }
 
-        val offset = if (type == "forward") 1 else -1
-
-        binding.viewPager.currentItem = textViewModel.pagePosition - offset
-        if (binding.viewPager.currentItem == textViewModel.pagePosition - offset) {
-            val pair = Pair(binding.edtSearch.text.length, searchIndexList)
-            adapter?.apply {
-                keywordListener = { pair }
-                notifyItemChanged(textViewModel.pagePosition - offset, "search")
-                textViewModel.pagePosition += offset
-            }
-        }
+        // 페이지를 변경 많이 하게 되면 내부적으로 notifyChange 가 호출 되는 것 같음
+        // 그래서 페이지 를 변경할때마다 검색어를 표시하는 것이 안됨. 다른방법이 있는지는 모르겠으나.
+        // 콜백이 안먹히는 상황이 발생함.
+        binding.viewPager.currentItem = textViewModel.pagePosition
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -265,8 +292,20 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     }
 
     private fun displayPager() {
-        adapter = TextPageAdapter(this@MainActivity, data)
+        adapter = TextPageAdapter(this@MainActivity,
+            data,
+            searchViewVisibleListener = { setSearchVisible(it) })
+
         binding.viewPager.adapter = adapter
+    }
+
+    private fun setSearchVisible(it: Boolean) {
+        if (binding.searchLayout.isVisible) {
+            adapter.notifyItemRangeChanged(0, textViewModel.maxPointPage+1)
+            binding.searchLayout.isVisible = it.not()
+        } else {
+            binding.searchLayout.isVisible = it
+        }
     }
 
     override fun PickiTonUriReturned() {}

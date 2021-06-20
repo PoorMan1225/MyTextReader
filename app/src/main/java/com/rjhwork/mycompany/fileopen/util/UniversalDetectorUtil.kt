@@ -1,4 +1,4 @@
-package com.rjhwork.mycompany.fileopen
+package com.rjhwork.mycompany.fileopen.util
 
 import org.mozilla.universalchardet.UniversalDetector
 import java.io.File

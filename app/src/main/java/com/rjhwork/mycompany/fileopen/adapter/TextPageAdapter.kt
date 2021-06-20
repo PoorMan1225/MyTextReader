@@ -1,30 +1,38 @@
-package com.rjhwork.mycompany.fileopen
+package com.rjhwork.mycompany.fileopen.adapter
 
 import android.content.Context
 import android.graphics.Color
 import android.text.Spannable
-import android.text.SpannableString
 import android.text.SpannableStringBuilder
 import android.text.style.ForegroundColorSpan
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.databinding.DataBindingUtil
 import androidx.recyclerview.widget.RecyclerView
+import com.rjhwork.mycompany.fileopen.R
 import com.rjhwork.mycompany.fileopen.databinding.ItemTextBinding
 
-class TextPageAdapter(val context: Context, private val textData: MutableList<String>) :
+class TextPageAdapter(val context: Context,
+                      private val textData: MutableList<String>,
+                      private val searchViewVisibleListener:(Boolean) -> Unit) :
     RecyclerView.Adapter<TextPageAdapter.ViewHolder>() {
 
+    // 내가 값을 받을 때.(TextPageAdapter 가 값을 받을때)
     var keywordListener: (() -> Pair<Int, MutableList<Int>>)? = null
 
-    class ViewHolder(private val binding: ItemTextBinding) : RecyclerView.ViewHolder(binding.root) {
+    inner class ViewHolder(private val binding: ItemTextBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(data: String) {
             binding.textView.text = data
+            binding.root.setOnClickListener {
+                searchViewVisibleListener(true)
+            }
         }
 
         fun bind(spannable: SpannableStringBuilder) {
             binding.textView.text = spannable
+            binding.root.setOnClickListener {
+                searchViewVisibleListener(true)
+            }
         }
     }
 
