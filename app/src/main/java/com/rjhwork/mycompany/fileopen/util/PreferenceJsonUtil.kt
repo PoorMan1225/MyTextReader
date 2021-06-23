@@ -14,6 +14,7 @@ class PreferenceJsonUtil {
         const val PAGE_SAVE = "page"
         const val TITLE_SAVE = "title"
         const val URI_SAVE = "uri"
+        const val LAND_DATA = "landscape"
 
         fun putSavePreference(context: Context, key: String, value: Int, spKey: String) {
             val preference = context.getSharedPreferences(spKey, Context.MODE_PRIVATE)

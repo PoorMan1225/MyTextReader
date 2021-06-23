@@ -11,21 +11,21 @@ class RotatePageSearchTask(
     private val data: MutableList<String>
 ) : Runnable {
 
-    private val ratio = if (textViewModel.dataSize > data.size - 1) { // L -> P
-        (textViewModel.dataSize.toFloat() / (data.size - 1)) + 0.05
-    } else {                                                          // P -> L
-        ((data.size - 1).toFloat() / textViewModel.dataSize) - 0.05
-    }
-
-    private val maxSearchPage: Int = if (textViewModel.dataSize > data.size - 1) {
-        (textViewModel.pagePosition / ratio).roundToInt()
-    } else {
-        (textViewModel.pagePosition * ratio).roundToInt()
-    }
-
-    val maxPage = if (maxSearchPage >= data.size) {
-        data.size - 1
-    } else maxSearchPage
+//    private val ratio = if (textViewModel.dataSize > data.size - 1) { // L -> P
+//        (textViewModel.dataSize.toFloat() / (data.size - 1)) + 0.05
+//    } else {                                                          // P -> L
+//        ((data.size - 1).toFloat() / textViewModel.dataSize) - 0.05
+//    }
+//
+//    private val maxSearchPage: Int = if (textViewModel.dataSize > data.size - 1) {
+//        (textViewModel.pagePosition / ratio).roundToInt()
+//    } else {
+//        (textViewModel.pagePosition * ratio).roundToInt()
+//    }
+//
+//    val maxPage = if (maxSearchPage >= data.size) {
+//        data.size - 1
+//    } else maxSearchPage
 
     val split = textViewModel.currentPageData.split("\n")
 
@@ -34,22 +34,31 @@ class RotatePageSearchTask(
         val containList = mutableListOf<Int>()
         var idx = 0
 
-        Log.d(TAG, "maxPage: $maxPage")
-        (0..data.size-1).forEach {
+        (0 until data.size).forEach {
             val data = data[it].replace("\n", "")
-            val check = data.contains(split[idx])
+            val sp = if(split[idx].trim().length > 18) {
+                split[idx].trim().substring(0, 19)
+            }else {
+                split[idx].trim()
+            }
+            val check = data.contains(sp)
             if (check) {
                 containList.add(it)
             }
         }
-        Log.d(TAG, "containList Size : ${containList.size}")
+        Log.d(TAG, "data : ${split[idx].trim()}")
         idx++
 
         val tempList = mutableListOf<Int>()
         while (containList.size > 1) {
             containList.forEach {
                 val data = data[it].replace("\n", "")
-                val check = data.contains(split[idx])
+                val sp = if(split[idx].trim().length > 18) {
+                    split[idx].trim().substring(0, 19)
+                }else {
+                    split[idx].trim()
+                }
+                val check = data.contains(sp)
                 if(check) {
                     tempList.add(it)
                 }

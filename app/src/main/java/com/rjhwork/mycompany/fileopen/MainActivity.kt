@@ -3,15 +3,12 @@ package com.rjhwork.mycompany.fileopen
 import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.database.Cursor
-import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.*
-import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
@@ -20,7 +17,6 @@ import android.widget.SeekBar
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
-import androidx.core.content.edit
 import androidx.core.view.isVisible
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.ViewModelProvider
@@ -38,7 +34,6 @@ import com.rjhwork.mycompany.fileopen.util.UniversalDetectorUtil
 import com.rjhwork.mycompany.fileopen.viewmodel.TextViewModel
 import java.io.*
 import java.util.*
-import kotlin.math.roundToInt
 
 const val TAG = "MainActivity"
 
@@ -66,10 +61,24 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
 
     private fun saveDataUri() {
         val saveUri =
-            PreferenceJsonUtil.getSavePreference(this, "uri", PreferenceJsonUtil.URI_SAVE, "")
-                ?: return
+            PreferenceJsonUtil.getSavePreference(this, "uri", PreferenceJsonUtil.URI_SAVE, "") ?: return
+        val savePage =
+            PreferenceJsonUtil.getSavePreference(this, "page", PreferenceJsonUtil.PAGE_SAVE)
+
+        val landData =
+            PreferenceJsonUtil.getSavePreference(this, "landscape", PreferenceJsonUtil.LAND_DATA, "")
+
+        if (landData != null) {
+            // portrait 경우
+            if(savePage != -1 && landData.isBlank()) {
+                textViewModel.pagePosition = savePage
+            }else {
+                textViewModel.currentPageData = landData
+            }
+        }
         val uri = Uri.parse(saveUri)
         textViewModel.contentUri = uri
+
         getFileName(uri)
         dialog.show()
         pickit.getPath(uri, Build.VERSION.SDK_INT)
@@ -213,9 +222,9 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
             when (msg.what) {
                 TextSplitThread.MESSAGE_TEXT_TYPE -> {
                     Log.d(TAG, "textViewModel currentPageData : ${textViewModel.currentPageData}")
-                    if(textViewModel.currentPageData.isNotBlank()) {
+                    if (textViewModel.currentPageData.isNotBlank()) {
                         rotatePageChange()
-                    }else {
+                    } else {
                         initSeekBar()
                         displayPager()
                         dialog.dismiss()
@@ -439,7 +448,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     }
 
     override fun onStop() {
-        if(data.isNotEmpty()) {
+        if (data.isNotEmpty()) {
             textViewModel.currentPageData = data[textViewModel.pagePosition]
             textViewModel.dataSize = data.size - 1
             PreferenceJsonUtil.putSavePreference(
@@ -448,8 +457,46 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
                 textViewModel.contentUri.toString(),
                 PreferenceJsonUtil.URI_SAVE
             )
+            val orientation = resources.configuration.orientation
+            // landscape 일때 데이터 저장.
+            if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                landScapeExit()
+            } else {
+                // portrait 일때 데이터 저장.
+                portraitExit()
+            }
         }
         super.onStop()
+    }
+
+    private fun portraitExit() {
+        PreferenceJsonUtil.putSavePreference(
+            this,
+            "page",
+            textViewModel.pagePosition,
+            PreferenceJsonUtil.PAGE_SAVE
+        )
+        PreferenceJsonUtil.putSavePreference(
+            this,
+            "landscape",
+            "",
+            PreferenceJsonUtil.LAND_DATA
+        )
+    }
+
+    private fun landScapeExit() {
+        PreferenceJsonUtil.putSavePreference(
+            this,
+            "landscape",
+            data[textViewModel.pagePosition],
+            PreferenceJsonUtil.LAND_DATA
+        )
+        PreferenceJsonUtil.putSavePreference(
+            this,
+            "page",
+            -1,
+            PreferenceJsonUtil.PAGE_SAVE
+        )
     }
 
     override fun onDestroy() {
