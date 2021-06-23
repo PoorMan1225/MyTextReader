@@ -3,10 +3,16 @@ package com.rjhwork.mycompany.fileopen
 import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
+import android.database.Cursor
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.*
+import android.provider.DocumentsContract
+import android.provider.OpenableColumns
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import android.view.*
@@ -14,6 +20,7 @@ import android.widget.SeekBar
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import androidx.core.view.isVisible
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.ViewModelProvider
@@ -22,24 +29,26 @@ import com.hbisoft.pickit.PickiT
 import com.hbisoft.pickit.PickiTCallbacks
 import com.rjhwork.mycompany.fileopen.adapter.TextPageAdapter
 import com.rjhwork.mycompany.fileopen.databinding.ActivityMainBinding
+import com.rjhwork.mycompany.fileopen.thread.RotatePageSearchTask
 import com.rjhwork.mycompany.fileopen.thread.SearchTask
 import com.rjhwork.mycompany.fileopen.thread.TextSplitThread
 import com.rjhwork.mycompany.fileopen.thread.ThreadPoolManager
+import com.rjhwork.mycompany.fileopen.util.PreferenceJsonUtil
 import com.rjhwork.mycompany.fileopen.util.UniversalDetectorUtil
 import com.rjhwork.mycompany.fileopen.viewmodel.TextViewModel
 import java.io.*
 import java.util.*
+import kotlin.math.roundToInt
 
-private const val TAG = "MainActivity"
+const val TAG = "MainActivity"
 
 class MainActivity : AppCompatActivity(), PickiTCallbacks {
     private lateinit var binding: ActivityMainBinding
-    private var data = Collections.synchronizedList(mutableListOf<String>())
+    private var data = mutableListOf<String>()
     private val searchIndexList = mutableListOf<Int>()
     private lateinit var threadPoolManager: ThreadPoolManager
 
     private lateinit var dialog: AlertDialog
-    private lateinit var uri: Uri
     private lateinit var pickit: PickiT
     private lateinit var adapter: TextPageAdapter
 
@@ -49,15 +58,26 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         init()
-        initSeekBar()
         getActivitySize()
         initDialog()
     }
 
+    private fun saveDataUri() {
+        val saveUri =
+            PreferenceJsonUtil.getSavePreference(this, "uri", PreferenceJsonUtil.URI_SAVE, "")
+                ?: return
+        val uri = Uri.parse(saveUri)
+        textViewModel.contentUri = uri
+        getFileName(uri)
+        dialog.show()
+        pickit.getPath(uri, Build.VERSION.SDK_INT)
+    }
+
     private fun initSeekBar() {
-        if(data.isNotEmpty()) {
-            binding.seekBar.max = data.size-1
+        if (data.isNotEmpty()) {
+            binding.seekBar.max = data.size - 1
         }
     }
 
@@ -83,6 +103,8 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
             .setPositiveButton("동의하기") { _, _ ->
                 requestPermission()
             }.setNegativeButton("취소하기") { _, _ -> }
+            .setCancelable(false)
+            .show()
     }
 
     private fun startSearchThread(length: Int, searchString: String, type: String) {
@@ -122,10 +144,15 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         binding.viewPager.registerOnPageChangeCallback(pageChangeListener)
 
         binding.seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {}
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                seekBar ?: return
 
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {
+                if (fromUser) {
+                    binding.viewPager.currentItem = seekBar.progress
+                }
             }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
 
             override fun onStopTrackingTouch(seekBar: SeekBar?) {
                 seekBar ?: return
@@ -148,12 +175,8 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         override fun onPageSelected(position: Int) {
             textViewModel.pagePosition = position
             binding.seekBar.progress = position
-            binding.pageTextView.text = getString(R.string.page_text, position.toString(), (data.size-1).toString())
-
-            if(textViewModel.maxPointPage < position) {
-                textViewModel.maxPointPage = position
-            }
-            Log.d(TAG, "position : $position")
+            binding.pageTextView.text =
+                getString(R.string.page_text, position.toString(), (data.size - 1).toString())
         }
     }
 
@@ -167,6 +190,8 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
 
                 textViewModel.aWidth = binding.root.width - widthOffset
                 textViewModel.aHeight = binding.root.height - heightOffset
+
+                saveDataUri()
             }
         })
     }
@@ -187,12 +212,30 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         override fun handleMessage(msg: Message) {
             when (msg.what) {
                 TextSplitThread.MESSAGE_TEXT_TYPE -> {
-                    displayPager()
-                    initSeekBar()
-                    Log.d(TAG, "data size: ${data.size}")
-                    dialog.dismiss()
+                    Log.d(TAG, "textViewModel currentPageData : ${textViewModel.currentPageData}")
+                    if(textViewModel.currentPageData.isNotBlank()) {
+                        rotatePageChange()
+                    }else {
+                        initSeekBar()
+                        displayPager()
+                        dialog.dismiss()
+                    }
                 }
             }
+        }
+    }
+
+    private fun rotatePageChange() {
+        val rotateTask = RotatePageSearchTask(textViewModel, data)
+        val future = threadPoolManager.executorService.submit(rotateTask)
+
+        try {
+            future.get()
+            initSeekBar()
+            displayPager()
+            dialog.dismiss()
+        } catch (e: Exception) {
+            Log.e(TAG, "future error : ${e.message}")
         }
     }
 
@@ -225,6 +268,15 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         return true
     }
 
+    private fun dataRefresh() {
+        if (data.isNotEmpty()) {
+            data.clear()
+        }
+        textViewModel.pagePosition = 0
+        textViewModel.displayName = ""
+        textViewModel.currentPageData = ""
+    }
+
     private fun textReadProcess() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             when {
@@ -246,9 +298,6 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     // 암시적 인텐트로 콘텐츠 프로바이더에 있는 파일의 액션과
     // 타입을 지정한 뒤에 request 보낸다.
     private fun performFileSearch() {
-        if (data.isNotEmpty()) {
-            data.clear()
-        }
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type = "text/*"
@@ -260,6 +309,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     // 파싱해서 작동하도록 한다.
     private val requestFileDocument =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            Log.d(TAG, "resultCode: ${result.resultCode}")
             if (result.resultCode == Activity.RESULT_OK) {
                 if (result.data == null) {
                     Toast.makeText(this, "데이터가 없습니다.", Toast.LENGTH_SHORT).show()
@@ -267,13 +317,38 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
                     if (result.data!!.data == null) {
                         return@registerForActivityResult
                     } else {
-                        uri = result.data?.data!!
+                        // 제대로 uri 가 왔을 경우에 데이터 초기화.
+                        dataRefresh()
+                        val uri = result.data?.data!!
+                        contentResolver.takePersistableUriPermission(
+                            uri,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        )
+                        Log.d(TAG, "getUri : $uri")
+                        textViewModel.contentUri = uri
+                        getFileName(uri)
                         dialog.show()
                         pickit.getPath(uri, Build.VERSION.SDK_INT)
                     }
                 }
             }
         }
+
+    // 파일 이름 얻기.
+    private fun getFileName(uri: Uri) {
+        val contentResolver = applicationContext.contentResolver
+
+        val cursor: Cursor? = contentResolver.query(uri, null, null, null, null, null)
+        cursor?.use {
+            if (it.moveToFirst()) {
+                val displayName: String =
+                    it.getString(it.getColumnIndex(OpenableColumns.DISPLAY_NAME))
+
+                Log.d(TAG, "display Name : $displayName")
+                textViewModel.displayName = displayName.substringBefore(".")
+            }
+        }
+    }
 
     private val requestPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { result ->
@@ -285,9 +360,17 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         }
 
     private fun startThread(encoding: String) {
+        textViewModel.contentUri ?: return
+
         val thread =
-            TextSplitThread(uri, encoding, applicationContext, textViewModel, data, mHandler)
-        dialog.show()
+            TextSplitThread(
+                textViewModel.contentUri!!,
+                encoding,
+                applicationContext,
+                textViewModel,
+                data,
+                mHandler
+            )
         thread.start()
     }
 
@@ -295,13 +378,15 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         adapter = TextPageAdapter(this@MainActivity,
             data,
             searchViewVisibleListener = { setSearchVisible(it) })
-
+        adapter.setHasStableIds(true)
         binding.viewPager.adapter = adapter
+        binding.viewPager.setCurrentItem(textViewModel.pagePosition, false)
+        binding.titleTextView.text = textViewModel.displayName
     }
 
     private fun setSearchVisible(it: Boolean) {
         if (binding.searchLayout.isVisible) {
-            adapter.notifyItemRangeChanged(0, textViewModel.maxPointPage+1)
+            adapter.notifyDataSetChanged()
             binding.searchLayout.isVisible = it.not()
         } else {
             binding.searchLayout.isVisible = it
@@ -327,6 +412,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
             val file = File(path)
             val encoding = UniversalDetectorUtil.findFileEncoding(file)
             if (encoding.isNotEmpty()) {
+                Log.d(TAG, "encoding : $encoding")
                 startThread(encoding)
             } else {
                 Toast.makeText(this, "인코딩 실패!", Toast.LENGTH_SHORT).show()
@@ -336,15 +422,42 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     }
 
     override fun onBackPressed() {
-        pickit.deleteTemporaryFile(this)
-        super.onBackPressed()
+        AlertDialog.Builder(this)
+            .setMessage("종료 하시겠습니까?")
+            .setPositiveButton("확인") { _, _ ->
+                PreferenceJsonUtil.putSavePreference(
+                    this,
+                    "uri",
+                    textViewModel.contentUri.toString(),
+                    PreferenceJsonUtil.URI_SAVE
+                )
+                binding.viewPager.unregisterOnPageChangeCallback(pageChangeListener)
+                super.onBackPressed()
+            }.setNegativeButton("취소") { _, _ -> }
+            .setCancelable(false)
+            .show()
+    }
+
+    override fun onStop() {
+        if(data.isNotEmpty()) {
+            textViewModel.currentPageData = data[textViewModel.pagePosition]
+            textViewModel.dataSize = data.size - 1
+            PreferenceJsonUtil.putSavePreference(
+                this,
+                "uri",
+                textViewModel.contentUri.toString(),
+                PreferenceJsonUtil.URI_SAVE
+            )
+        }
+        super.onStop()
     }
 
     override fun onDestroy() {
-        super.onDestroy()
         if (!isChangingConfigurations) {
             pickit.deleteTemporaryFile(this)
         }
+        binding.viewPager.unregisterOnPageChangeCallback(pageChangeListener)
         threadPoolManager.executorService.isShutdown
+        super.onDestroy()
     }
 }

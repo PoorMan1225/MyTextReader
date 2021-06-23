@@ -79,5 +79,10 @@ class TextPageAdapter(val context: Context,
             }
         }
     }
+
+    override fun getItemId(position: Int): Long {
+        return textData[position].hashCode().toLong()
+    }
+
     override fun getItemCount() = textData.size
 }

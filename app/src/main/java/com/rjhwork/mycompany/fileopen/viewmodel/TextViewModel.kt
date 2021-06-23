@@ -1,5 +1,6 @@
 package com.rjhwork.mycompany.fileopen.viewmodel
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import kotlin.math.floor
 
@@ -30,5 +31,11 @@ class TextViewModel : ViewModel() {
 
     var pagePosition = 0
 
-    var maxPointPage = 0
+    var currentPageData:String = ""
+
+    var dataSize = 0
+
+    var displayName:String = ""
+
+    var contentUri: Uri? = null
 }

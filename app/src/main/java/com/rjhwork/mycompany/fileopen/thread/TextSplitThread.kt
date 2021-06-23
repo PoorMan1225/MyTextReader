@@ -4,6 +4,8 @@ import android.content.Context
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
+import com.rjhwork.mycompany.fileopen.TAG
 import com.rjhwork.mycompany.fileopen.viewmodel.TextViewModel
 import java.io.BufferedReader
 import java.io.InputStreamReader
