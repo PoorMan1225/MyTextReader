@@ -11,7 +11,8 @@
 
         <TextView
             android:layout_marginVertical="@dimen/verticalMargin"
-            android:padding="@dimen/textPadding"
+            android:paddingVertical="10dp"
+            android:paddingStart="20dp"
             tools:text="ddd"
             android:background="@color/white"
             android:layout_marginStart="@dimen/horizontalMargin"

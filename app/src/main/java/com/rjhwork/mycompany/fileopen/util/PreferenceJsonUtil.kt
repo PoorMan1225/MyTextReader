@@ -10,9 +10,7 @@ import org.json.JSONException
 class PreferenceJsonUtil {
 
     companion object {
-        const val DATA_SAVE = "data"
         const val PAGE_SAVE = "page"
-        const val TITLE_SAVE = "title"
         const val URI_SAVE = "uri"
         const val LAND_DATA = "landscape"
 

@@ -1,6 +1,7 @@
 package com.rjhwork.mycompany.fileopen.thread
 
 import android.content.Context
+import android.graphics.Paint
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
@@ -11,21 +12,26 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.lang.StringBuilder
 
-class TextSplitThread(private val uri: Uri,
-                      private val encoding: String,
-                      private val context: Context,
-                      private val textViewModel: TextViewModel,
-                      private val data:MutableList<String>,
-                      private val handler:Handler
-                      ) : Thread() {
+class TextSplitThread(
+    private val uri: Uri,
+    private val encoding: String,
+    private val context: Context,
+    private val textViewModel: TextViewModel,
+    private val data: MutableList<String>,
+    private val handler: Handler
+) : Thread() {
 
     companion object {
         const val MESSAGE_TEXT_TYPE = 1001
+
+        private const val str0To5 =
+            "!\"#$%&()*+-/<=>?0123456789\\[]^_abcdefghijklmnopqrstuvwxyz{|}~"
+        private const val str0TO3 = "':;,.`"
+        private const val str0To8 = " @ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     }
 
     override fun run() {
         Looper.prepare()
-
         val resultList = mutableListOf<String>()
         val saveList = mutableListOf<String>()
         val sb = StringBuilder()
@@ -47,7 +53,7 @@ class TextSplitThread(private val uri: Uri,
                     if (count < textViewModel.maxLine) {
                         line = reader.readLine()
                         // 마지막일 경우 add 하고 끝.
-                        if(line == null) {
+                        if (line == null) {
                             resultList.forEachIndexed { i, _ ->
                                 sb.append(resultList[i])
                             }
@@ -97,48 +103,64 @@ class TextSplitThread(private val uri: Uri,
         resultList.clear()
     }
 
-    private fun addLineListToResultList(line: String, resultList: MutableList<String>, textViewModel: TextViewModel) {
+    private fun addLineListToResultList(
+        line: String,
+        resultList: MutableList<String>,
+        textViewModel: TextViewModel
+    ) {
         val lineList = checkTextCountAddLineList(line, textViewModel)
         resultList += lineList
     }
 
-    private fun addSaveListToResultList(saveList: MutableList<String>, resultList: MutableList<String>) {
+    private fun addSaveListToResultList(
+        saveList: MutableList<String>,
+        resultList: MutableList<String>
+    ) {
         if (saveList.size > 0) {
             resultList += saveList
             saveList.clear()
         }
     }
-}
 
-// 문자를 한글자 씩 확인해서 width 에 맞게 textCount 센후에 해당 문자 한줄씩
+    // 문자를 한글자 씩 확인해서 width 에 맞게 textCount 센후에 해당 문자 한줄씩
 // lineList 에 넣어주는 함수
-private fun checkTextCountAddLineList(line: String, textViewModel: TextViewModel): MutableList<String> {
-    val sb = StringBuilder()
-    val lineList = mutableListOf<String>()
-    var count = 0
+    private fun checkTextCountAddLineList(
+        line: String,
+        textViewModel: TextViewModel
+    ): MutableList<String> {
+        val sb = StringBuilder()
+        val lineList = mutableListOf<String>()
+        var count = 0f
 
-    line.forEachIndexed { i, c ->
-        count++
-        if (c == '\n') {
-            sb.append(c)
-            lineList.add(sb.toString())
-            count = 0
-            sb.clear()
-        } else {
+        line.forEachIndexed { i, c ->
+            count += checkWidth(c)
+
             if (i == line.length - 1) {
                 sb.append(c).append("\n")
                 lineList.add(sb.toString())
                 return@forEachIndexed
             }
             sb.append(c)
+//            Log.d(TAG, "textCount : ${textViewModel.textCount}")
+            if (count >= textViewModel.textCount) {
+                count = 0f
+                sb.append("\n")
+//                Log.d(TAG, "string : ${sb.toString()}")
+                lineList.add(sb.toString())
+                sb.clear()
+            }
         }
+        return lineList
+    }
 
-        if (count == textViewModel.textCount) {
-            count = 0
-            sb.append("\n")
-            lineList.add(sb.toString())
-            sb.clear()
+    private fun checkWidth(c: Char): Float {
+        return when {
+            str0TO3.contains(c) -> 0.3f
+            str0To5.contains(c) -> 0.5f
+            str0To8.contains(c) -> 0.8f
+            else -> 1.0f
         }
     }
-    return lineList
 }
+
+

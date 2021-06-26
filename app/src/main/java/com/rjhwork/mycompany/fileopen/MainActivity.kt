@@ -3,6 +3,7 @@ package com.rjhwork.mycompany.fileopen
 import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.ContentProvider
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
@@ -17,6 +18,7 @@ import android.widget.SeekBar
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.core.view.isVisible
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.ViewModelProvider
@@ -62,18 +64,18 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     private fun saveDataUri() {
         val saveUri =
             PreferenceJsonUtil.getSavePreference(this, "uri", PreferenceJsonUtil.URI_SAVE, "") ?: return
+
+        Log.d(TAG, "saveUri : $saveUri")
         val savePage =
             PreferenceJsonUtil.getSavePreference(this, "page", PreferenceJsonUtil.PAGE_SAVE)
-
         val landData =
             PreferenceJsonUtil.getSavePreference(this, "landscape", PreferenceJsonUtil.LAND_DATA, "")
 
         if (landData != null) {
-            // portrait 경우
             if(savePage != -1 && landData.isBlank()) {
-                textViewModel.pagePosition = savePage
+                textViewModel.pagePosition = savePage  // portrait 경우
             }else {
-                textViewModel.currentPageData = landData
+                textViewModel.currentPageData = landData // landscape 의 경우
             }
         }
         val uri = Uri.parse(saveUri)
@@ -165,7 +167,6 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
 
             override fun onStopTrackingTouch(seekBar: SeekBar?) {
                 seekBar ?: return
-
                 binding.viewPager.currentItem = seekBar.progress
             }
         })
@@ -194,11 +195,15 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
             ViewTreeObserver.OnGlobalLayoutListener {
             override fun onGlobalLayout() {
                 binding.root.viewTreeObserver.removeOnGlobalLayoutListener(this)
-                val heightOffset = convertDPtoPixel(90)
-                val widthOffset = convertDPtoPixel(15)
-
-                textViewModel.aWidth = binding.root.width - widthOffset
-                textViewModel.aHeight = binding.root.height - heightOffset
+                val orientation = resources.configuration.orientation
+                // landscape 일때 데이터 저장.
+                textViewModel.aWidth = binding.root.width
+                textViewModel.aHeight = binding.root.height
+                if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                    textViewModel.maxLine -= 1
+                }
+                Log.d(TAG, "width : ${textViewModel.aWidth}")
+                Log.d(TAG, "height : ${textViewModel.aHeight}")
 
                 saveDataUri()
             }
@@ -329,11 +334,14 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
                         // 제대로 uri 가 왔을 경우에 데이터 초기화.
                         dataRefresh()
                         val uri = result.data?.data!!
+                        Log.d(TAG, "uri : $uri")
+                        val contentUri = uri.path
+                        Log.d(TAG, "contentUri : $contentUri")
+
                         contentResolver.takePersistableUriPermission(
                             uri,
                             Intent.FLAG_GRANT_READ_URI_PERMISSION
                         )
-                        Log.d(TAG, "getUri : $uri")
                         textViewModel.contentUri = uri
                         getFileName(uri)
                         dialog.show()
@@ -418,7 +426,15 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         if (wasSuccessful) {
             path ?: return
 
-            val file = File(path)
+            var realPath = path
+            Log.d(TAG, "realPath : $realPath")
+            val uriPath = textViewModel.contentUri?.path!!
+            Log.d(TAG, "uriPath : $uriPath")
+            if(uriPath.contains(textViewModel.displayName)) {
+                realPath = uriPath.substringAfter(":")
+            }
+
+            val file = File(realPath)
             val encoding = UniversalDetectorUtil.findFileEncoding(file)
             if (encoding.isNotEmpty()) {
                 Log.d(TAG, "encoding : $encoding")
