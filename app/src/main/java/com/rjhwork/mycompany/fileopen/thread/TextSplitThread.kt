@@ -25,9 +25,9 @@ class TextSplitThread(
         const val MESSAGE_TEXT_TYPE = 1001
 
         private const val str0To5 =
-            "!\"#$%&()*+-/<=>?0123456789\\[]^_abcdefghijklmnopqrstuvwxyz{|}~"
+            "!\"[]^_abcdefghijklmnopqrstuvwxyz{|}~"
         private const val str0TO3 = "':;,.`"
-        private const val str0To8 = " @ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        private const val str0To8 = " @=_#\$%&()*+-/<=>?0123456789\\ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     }
 
     override fun run() {
@@ -141,11 +141,15 @@ class TextSplitThread(
                 return@forEachIndexed
             }
             sb.append(c)
-//            Log.d(TAG, "textCount : ${textViewModel.textCount}")
+
+            if(c == '\n') {
+                lineList.add(sb.toString())
+                sb.clear()
+                count = 0f
+            }
             if (count >= textViewModel.textCount) {
                 count = 0f
                 sb.append("\n")
-//                Log.d(TAG, "string : ${sb.toString()}")
                 lineList.add(sb.toString())
                 sb.clear()
             }
@@ -155,9 +159,9 @@ class TextSplitThread(
 
     private fun checkWidth(c: Char): Float {
         return when {
-            str0TO3.contains(c) -> 0.3f
-            str0To5.contains(c) -> 0.5f
             str0To8.contains(c) -> 0.8f
+            str0To5.contains(c) -> 0.5f
+            str0TO3.contains(c) -> 0.3f
             else -> 1.0f
         }
     }
