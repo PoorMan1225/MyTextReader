@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.style.ForegroundColorSpan
+import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.databinding.DataBindingUtil
@@ -12,16 +13,23 @@ import androidx.recyclerview.widget.RecyclerView
 import com.rjhwork.mycompany.fileopen.R
 import com.rjhwork.mycompany.fileopen.databinding.ItemTextBinding
 
-class TextPageAdapter(val context: Context,
-                      private val textData: MutableList<String>,
-                      private val searchViewVisibleListener:(Boolean) -> Unit) :
+class TextPageAdapter(
+    val context: Context,
+    private val textData: MutableList<String>,
+    private val searchViewVisibleListener: (Boolean) -> Unit,
+    private val setTextSizeListener: () -> Float
+) :
     RecyclerView.Adapter<TextPageAdapter.ViewHolder>() {
 
     // 내가 값을 받을 때.(TextPageAdapter 가 값을 받을때)
     var keywordListener: (() -> Pair<Int, MutableList<Int>>)? = null
 
-    inner class ViewHolder(private val binding: ItemTextBinding) : RecyclerView.ViewHolder(binding.root) {
+    inner class ViewHolder(private val binding: ItemTextBinding) :
+        RecyclerView.ViewHolder(binding.root) {
         fun bind(data: String) {
+            val size = setTextSizeListener.invoke()
+            // 동적으로 text size 변경.
+            binding.textView.setTextSize(TypedValue.COMPLEX_UNIT_PX, size)
             binding.textView.text = data
             binding.root.setOnClickListener {
                 searchViewVisibleListener(true)
@@ -29,6 +37,8 @@ class TextPageAdapter(val context: Context,
         }
 
         fun bind(spannable: SpannableStringBuilder) {
+            val size = setTextSizeListener.invoke()
+            binding.textView.setTextSize(TypedValue.COMPLEX_UNIT_PX, size)
             binding.textView.text = spannable
             binding.root.setOnClickListener {
                 searchViewVisibleListener(true)

@@ -3,7 +3,6 @@ package com.rjhwork.mycompany.fileopen
 import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
-import android.content.ContentProvider
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
@@ -17,8 +16,8 @@ import android.view.*
 import android.widget.SeekBar
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
-import androidx.core.net.toUri
 import androidx.core.view.isVisible
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.ViewModelProvider
@@ -55,15 +54,21 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         init()
         getActivitySize()
         initDialog()
     }
 
     private fun saveDataUri() {
-        val saveUri =
-            PreferenceJsonUtil.getSavePreference(this, "uri", PreferenceJsonUtil.URI_SAVE, "") ?: return
+        // uri 가 없다면 최초로 앱을 깔고 파일을 연적이 없으므로
+        // empty layout 을 보여준다.
+        val saveUri = PreferenceJsonUtil.getSavePreference(this, "uri", PreferenceJsonUtil.URI_SAVE, "")
+        if(saveUri == null) {
+            firstEnableButtonAndLayout(true)
+            return
+        }
+
+        firstEnableButtonAndLayout(false)
 
         Log.d(TAG, "saveUri : $saveUri")
         val savePage =
@@ -80,10 +85,19 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         }
         val uri = Uri.parse(saveUri)
         textViewModel.contentUri = uri
+        getFileUriAndRender(uri)
+    }
 
+    private fun getFileUriAndRender(uri: Uri) {
         getFileName(uri)
         dialog.show()
         pickit.getPath(uri, Build.VERSION.SDK_INT)
+    }
+
+    private fun firstEnableButtonAndLayout(init:Boolean) {
+        binding.backButton.isEnabled = init.not()
+        binding.forwardButton.isEnabled = init.not()
+        binding.emptyLayout.isVisible = init
     }
 
     private fun initSeekBar() {
@@ -97,6 +111,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         binding = DataBindingUtil.setContentView(this, R.layout.activity_main)
         pickit = PickiT(this, this, this)
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN)
+        textViewModel.textSizeDimen = resources.getDimension(R.dimen.textSizeS)
     }
 
     // 최초 퍼미션 요청
@@ -141,6 +156,11 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
 
     override fun onStart() {
         super.onStart()
+
+        binding.emptyFileOpenButton.setOnClickListener {
+            textReadProcess()
+        }
+
         binding.search.setOnClickListener {
             startSearching("search")
         }
@@ -170,6 +190,101 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
                 binding.viewPager.currentItem = seekBar.progress
             }
         })
+
+        binding.backButton.setOnClickListener {
+            forward()
+        }
+
+        binding.forwardButton.setOnClickListener {
+            backward()
+        }
+
+        binding.fileOpenButton.setOnClickListener {
+            textReadProcess()
+        }
+
+        binding.switchNightMode.setOnCheckedChangeListener { _, isChecked ->
+            binding.nightMode.isVisible = isChecked
+        }
+
+        binding.settingButton.setOnClickListener {
+            if(binding.searchLayout.isVisible) {
+                binding.searchLayout.isVisible = false
+            }
+            binding.settingLayout.isVisible = !binding.settingLayout.isVisible
+        }
+
+        binding.includeLayout.plusCount.setOnClickListener {
+            textSizeUp()
+        }
+
+        binding.includeLayout.minusCount.setOnClickListener {
+            textSizeDown()
+        }
+    }
+
+    private fun textSizeDown() {
+        val text = binding.includeLayout.centerCount.text.toString()
+        textViewModel.textSize = text.toInt()
+
+        var count = textViewModel.textSize
+        if (count > 1) {
+            count -= 1
+            binding.includeLayout.centerCount.text = count.toString()
+            changeCountRender(count)
+        }
+    }
+
+    private fun textSizeUp() {
+        val text = binding.includeLayout.centerCount.text.toString()
+        textViewModel.textSize = text.toInt()
+
+        var count = textViewModel.textSize
+        if (count < 3) {
+            count += 1
+            binding.includeLayout.centerCount.text = count.toString()
+            changeCountRender(count)
+        }
+    }
+
+    private fun backward() {
+        textViewModel.pagePosition += 1
+        if (textViewModel.pagePosition >= data.size) {
+            textViewModel.pagePosition = data.size - 1
+        }
+        binding.viewPager.currentItem = textViewModel.pagePosition
+    }
+
+    private fun forward() {
+        textViewModel.pagePosition -= 1
+        if (textViewModel.pagePosition <= 0) {
+            textViewModel.pagePosition = 0
+        }
+        binding.viewPager.currentItem = textViewModel.pagePosition
+    }
+
+    private fun changeCountRender(count: Int) {
+        when (count) {
+            1 -> changeRatio(46, 129, R.dimen.textSizeS)
+            2 -> changeRatio(56, 137, R.dimen.textSizeM)
+            3 -> changeRatio(72, 147, R.dimen.textSizeL)
+        }
+    }
+
+    private fun changeRatio(width:Int, height:Int, dimen:Int) {
+        textViewModel.textSizeDimen = resources.getDimension(dimen)
+        resize(width, height)
+
+        textViewModel.contentUri ?: return
+        dataRefresh(false)
+        getFileUriAndRender(textViewModel.contentUri!!)
+    }
+
+    private fun resize(width: Int, height: Int) {
+        textViewModel.widthCountRatio = width
+        textViewModel.heightLineRatio = height
+        textViewModel.textCount = ((textViewModel.aWidth / textViewModel.widthCountRatio).toFloat())
+        textViewModel.maxLine = (textViewModel.aHeight / textViewModel.heightLineRatio)
     }
 
     private fun startSearching(key: String) {
@@ -195,13 +310,9 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
             ViewTreeObserver.OnGlobalLayoutListener {
             override fun onGlobalLayout() {
                 binding.root.viewTreeObserver.removeOnGlobalLayoutListener(this)
-                val orientation = resources.configuration.orientation
                 // landscape 일때 데이터 저장.
                 textViewModel.aWidth = binding.root.width
                 textViewModel.aHeight = binding.root.height
-                if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
-                    textViewModel.maxLine -= 1
-                }
                 Log.d(TAG, "width : ${textViewModel.aWidth}")
                 Log.d(TAG, "height : ${textViewModel.aHeight}")
 
@@ -239,6 +350,10 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         }
     }
 
+    private fun emptyLayoutInVisible() {
+        firstEnableButtonAndLayout(false)
+    }
+
     private fun rotatePageChange() {
         val rotateTask = RotatePageSearchTask(textViewModel, data)
         val future = threadPoolManager.executorService.submit(rotateTask)
@@ -270,23 +385,13 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         binding.viewPager.currentItem = textViewModel.pagePosition
     }
 
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menuInflater.inflate(R.menu.main, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        if (item.itemId == R.id.sample_action) {
-            textReadProcess()
-        }
-        return true
-    }
-
-    private fun dataRefresh() {
+    private fun dataRefresh(pageRefresh:Boolean) {
         if (data.isNotEmpty()) {
             data.clear()
         }
-        textViewModel.pagePosition = 0
+        if(pageRefresh) {
+            textViewModel.pagePosition = 0
+        }
         textViewModel.displayName = ""
         textViewModel.currentPageData = ""
     }
@@ -332,7 +437,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
                         return@registerForActivityResult
                     } else {
                         // 제대로 uri 가 왔을 경우에 데이터 초기화.
-                        dataRefresh()
+                        dataRefresh(true)
                         val uri = result.data?.data!!
                         Log.d(TAG, "uri : $uri")
                         val contentUri = uri.path
@@ -343,9 +448,8 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
                             Intent.FLAG_GRANT_READ_URI_PERMISSION
                         )
                         textViewModel.contentUri = uri
-                        getFileName(uri)
-                        dialog.show()
-                        pickit.getPath(uri, Build.VERSION.SDK_INT)
+                        emptyLayoutInVisible()
+                        getFileUriAndRender(uri)
                     }
                 }
             }
@@ -394,7 +498,9 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     private fun displayPager() {
         adapter = TextPageAdapter(this@MainActivity,
             data,
-            searchViewVisibleListener = { setSearchVisible(it) })
+            searchViewVisibleListener = { setSearchVisible(it) },
+            setTextSizeListener = { textViewModel.textSizeDimen }
+        )
         adapter.setHasStableIds(true)
         binding.viewPager.adapter = adapter
         binding.viewPager.setCurrentItem(textViewModel.pagePosition, false)
@@ -402,11 +508,19 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     }
 
     private fun setSearchVisible(it: Boolean) {
+        if(binding.settingLayout.isVisible) {
+            binding.settingLayout.isVisible = it.not()
+            binding.toolBarLayout.isVisible = it.not()
+            return
+        }
+
         if (binding.searchLayout.isVisible) {
             adapter.notifyDataSetChanged()
             binding.searchLayout.isVisible = it.not()
+            binding.toolBarLayout.isVisible = it.not()
         } else {
             binding.searchLayout.isVisible = it
+            binding.toolBarLayout.isVisible = it
         }
     }
 

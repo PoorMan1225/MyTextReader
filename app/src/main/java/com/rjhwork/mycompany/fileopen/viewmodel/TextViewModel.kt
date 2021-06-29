@@ -10,19 +10,22 @@ class TextViewModel : ViewModel() {
     var maxLine = 0
 
     // 하면의 가로 넓이 픽셀
+    var widthCountRatio = 46
+    var heightLineRatio = 129
+
     var aWidth = 0
         set(value) {
             field = value
-            // width 19 textCount
-            textCount = ((aWidth / 54).toFloat())
+            // width 22 textCount
+            textCount = ((aWidth / 46).toFloat())
         }
 
     // 화면의 세로 넓이 픽셀
     var aHeight = 0
         set(value) {
             field = value
-            // height = 14 line
-            maxLine = (aHeight / 136)
+            // height = 16 line
+            maxLine = (aHeight / 129)
         }
 
     var pagePosition = 0
@@ -34,4 +37,8 @@ class TextViewModel : ViewModel() {
     var displayName:String = ""
 
     var contentUri: Uri? = null
+
+    var textSize:Int = 1
+
+    var textSizeDimen:Float = 0f
 }

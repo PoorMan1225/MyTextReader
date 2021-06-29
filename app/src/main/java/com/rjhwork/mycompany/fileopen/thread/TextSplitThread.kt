@@ -23,11 +23,6 @@ class TextSplitThread(
 
     companion object {
         const val MESSAGE_TEXT_TYPE = 1001
-
-        private const val str0To5 =
-            "!\"[]^_abcdefghijklmnopqrstuvwxyz{|}~"
-        private const val str0TO3 = "':;,.`"
-        private const val str0To8 = " @=_#\$%&()*+-/<=>?0123456789\\ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     }
 
     override fun run() {
@@ -56,6 +51,10 @@ class TextSplitThread(
                         if (line == null) {
                             resultList.forEachIndexed { i, _ ->
                                 sb.append(resultList[i])
+                            }
+                            val offset = textViewModel.maxLine - resultList.size
+                            (0 until offset).forEach { _ ->
+                                sb.append("\n")
                             }
                             data.add(sb.toString())
                             break
@@ -132,36 +131,49 @@ class TextSplitThread(
         val lineList = mutableListOf<String>()
         var count = 0f
 
-        line.forEachIndexed { i, c ->
+        var i = 0
+        while (i < line.length) {
+            val c = line[i]
             count += checkWidth(c)
 
             if (i == line.length - 1) {
                 sb.append(c).append("\n")
                 lineList.add(sb.toString())
-                return@forEachIndexed
+                break
             }
             sb.append(c)
 
-            if(c == '\n') {
+            if (c == '\n') {
                 lineList.add(sb.toString())
                 sb.clear()
                 count = 0f
             }
+
             if (count >= textViewModel.textCount) {
                 count = 0f
-                sb.append("\n")
+                val l = line[i+1]
+                if (l == '.' || l == '!' || l == '?' || l == '"' || l == '“' || l == ',') {
+                    sb.append(".").append("\n")
+                    i += 1
+                } else {
+                    sb.append("\n")
+                }
                 lineList.add(sb.toString())
                 sb.clear()
             }
+            i++
         }
         return lineList
     }
 
     private fun checkWidth(c: Char): Float {
         return when {
-            str0To8.contains(c) -> 0.8f
-            str0To5.contains(c) -> 0.5f
-            str0TO3.contains(c) -> 0.3f
+            ((c in 'a'..'z') || (c in '0'..'9')) -> 0.6f
+            ((c in 'A'..'Z') || c == '^' || c == '~') -> 0.6f
+            (c == '*' || c == '_' || c == '-' || c == '+' || c == '"' || c == ' ' || c == '?' || c == '/' || c == '”') -> 0.42f
+            (c == ',' || c =='\'' || c == '`' || c == '.' || c == ':' || c == ';' || c == '|') -> 0.23f
+            (c == '!' || c == '(' || c == ')' || c == '{' || c == '}' || c == '[' || c == ']') -> 0.33f
+            (c == '─') -> 1.1f
             else -> 1.0f
         }
     }

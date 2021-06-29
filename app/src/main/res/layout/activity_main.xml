@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools">
 
     <FrameLayout
@@ -13,8 +14,99 @@
             android:id="@+id/viewPager"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="@color/white"
-            />
+            android:background="@color/white" />
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/emptyLayout"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <ImageButton
+                    android:id="@+id/emptyFileOpenButton"
+                    android:layout_width="50dp"
+                    android:layout_height="50dp"
+                    android:layout_gravity="center"
+                    android:background="?attr/selectableItemBackground"
+                    android:scaleType="fitXY"
+                    app:srcCompat="@drawable/ic_baseline_folder_24" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="@string/empty_file_open"
+                    android:textColor="@color/black"
+                    android:textSize="15sp" />
+            </LinearLayout>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <LinearLayout
+            android:id="@+id/toolBarLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top"
+            android:background="@drawable/layout_border"
+            android:padding="10dp"
+            android:visibility="gone"
+            android:weightSum="10"
+            tools:visibility="visible">
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="30dp"
+                android:layout_weight="7" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="3"
+                android:gravity="center">
+
+                <ImageButton
+                    android:id="@+id/bookMarkButton"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:background="@drawable/ic_baseline_bookmark_24" />
+
+                <ImageButton
+                    android:id="@+id/fileOpenButton"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:layout_marginStart="10dp"
+                    android:background="@drawable/ic_baseline_folder_open_24" />
+
+                <ImageButton
+                    android:id="@+id/settingButton"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:layout_marginStart="10dp"
+                    android:background="@drawable/ic_baseline_settings_24" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <View
+            android:id="@+id/backButton"
+            android:layout_width="60dp"
+            android:layout_height="100dp"
+            android:layout_gravity="center_vertical"
+            android:background="#00000000" />
+
+        <View
+            android:id="@+id/forwardButton"
+            android:layout_width="60dp"
+            android:layout_height="100dp"
+            android:layout_gravity="center_vertical|end"
+            android:background="#00000000" />
 
         <LinearLayout
             android:id="@+id/searchLayout"
@@ -24,7 +116,7 @@
             android:background="@drawable/layout_border"
             android:orientation="vertical"
             android:visibility="gone"
-            tools:visibility="visible">
+            tools:visibility="gone">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -34,10 +126,10 @@
                 android:weightSum="13">
 
                 <EditText
-                    android:layout_marginStart="20dp"
                     android:id="@+id/edtSearch"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_marginStart="20dp"
                     android:layout_weight="10" />
 
                 <ImageButton
@@ -113,5 +205,91 @@
                 </LinearLayout>
             </LinearLayout>
         </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/settingLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:background="@drawable/layout_border"
+            android:orientation="vertical"
+            android:visibility="gone"
+            tools:visibility="visible"
+            >
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:weightSum="10">
+
+                <ImageButton
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:layout_gravity="center"
+                    android:layout_marginStart="10dp"
+                    android:background="@drawable/ic_baseline_light_mode_24" />
+
+                <SeekBar
+                    android:id="@+id/lightSeekbar"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:layout_weight="9"
+                    android:maxHeight="5dp"
+                    android:minHeight="5dp"
+                    android:progress="0"
+                    android:progressDrawable="@drawable/seek_bar_progress"
+                    android:splitTrack="false"
+                    android:thumb="@drawable/seek_bar_thumb" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:gravity="center"
+                        android:text="@string/night_mode_text"
+                        android:textColor="@color/white" />
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/switchNightMode"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="5dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:layout_marginStart="10dp"
+                    android:layout_weight="1"
+                    android:text="글자 크기"
+                    android:textColor="@color/white" />
+
+                <include
+                    android:id="@+id/includeLayout"
+                    layout="@layout/count_button_layout" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <View
+            android:id="@+id/nightMode"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/night_mode"
+            android:visibility="gone" />
     </FrameLayout>
 </layout>
