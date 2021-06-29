@@ -1,12 +1,14 @@
 package com.rjhwork.mycompany.fileopen
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.database.Cursor
+import android.graphics.Color
 import android.net.Uri
 import android.os.*
 import android.provider.OpenableColumns
@@ -14,6 +16,7 @@ import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import android.view.*
 import android.widget.SeekBar
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.constraintlayout.widget.ConstraintLayout
@@ -26,6 +29,7 @@ import com.hbisoft.pickit.PickiT
 import com.hbisoft.pickit.PickiTCallbacks
 import com.rjhwork.mycompany.fileopen.adapter.TextPageAdapter
 import com.rjhwork.mycompany.fileopen.databinding.ActivityMainBinding
+import com.rjhwork.mycompany.fileopen.model.SaveData
 import com.rjhwork.mycompany.fileopen.thread.RotatePageSearchTask
 import com.rjhwork.mycompany.fileopen.thread.SearchTask
 import com.rjhwork.mycompany.fileopen.thread.TextSplitThread
@@ -62,28 +66,34 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     private fun saveDataUri() {
         // uri 가 없다면 최초로 앱을 깔고 파일을 연적이 없으므로
         // empty layout 을 보여준다.
-        val saveUri = PreferenceJsonUtil.getSavePreference(this, "uri", PreferenceJsonUtil.URI_SAVE, "")
-        if(saveUri == null) {
+        val data = PreferenceJsonUtil.getSaveObject(this, "data", PreferenceJsonUtil.SAVE_DATA)
+        if (data == null) {
+            textViewModel.aWidth = binding.root.width
+            textViewModel.aHeight = binding.root.height
+            textViewModel.textSizeDimen = resources.getDimension(R.dimen.textSizeS)
             firstEnableButtonAndLayout(true)
             return
         }
 
         firstEnableButtonAndLayout(false)
+        restoreData(data)
+    }
 
-        Log.d(TAG, "saveUri : $saveUri")
-        val savePage =
-            PreferenceJsonUtil.getSavePreference(this, "page", PreferenceJsonUtil.PAGE_SAVE)
-        val landData =
-            PreferenceJsonUtil.getSavePreference(this, "landscape", PreferenceJsonUtil.LAND_DATA, "")
-
-        if (landData != null) {
-            if(savePage != -1 && landData.isBlank()) {
-                textViewModel.pagePosition = savePage  // portrait 경우
-            }else {
-                textViewModel.currentPageData = landData // landscape 의 경우
-            }
+    private fun restoreData(data: SaveData) {
+        if (data.page != -1 && data.landData.isBlank()) {
+            textViewModel.pagePosition = data.page  // portrait 경우
+        } else {
+            textViewModel.currentPageData = data.landData // landscape 의 경우
         }
-        val uri = Uri.parse(saveUri)
+        textViewModel.textSizeDimen = data.textDimension
+        textViewModel.textSize = data.textSize
+        textViewModel.widthCountRatio = data.widthCountRatio
+        textViewModel.heightLineRatio = data.heightLineRatio
+        textViewModel.aWidth = binding.root.width
+        textViewModel.aHeight = binding.root.height
+        binding.includeLayout.centerCount.text = data.textSize.toString()
+
+        val uri = Uri.parse(data.uri)
         textViewModel.contentUri = uri
         getFileUriAndRender(uri)
     }
@@ -94,7 +104,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         pickit.getPath(uri, Build.VERSION.SDK_INT)
     }
 
-    private fun firstEnableButtonAndLayout(init:Boolean) {
+    private fun firstEnableButtonAndLayout(init: Boolean) {
         binding.backButton.isEnabled = init.not()
         binding.forwardButton.isEnabled = init.not()
         binding.emptyLayout.isVisible = init
@@ -111,7 +121,6 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         binding = DataBindingUtil.setContentView(this, R.layout.activity_main)
         pickit = PickiT(this, this, this)
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN)
-        textViewModel.textSizeDimen = resources.getDimension(R.dimen.textSizeS)
     }
 
     // 최초 퍼미션 요청
@@ -154,6 +163,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         }
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     override fun onStart() {
         super.onStart()
 
@@ -208,19 +218,44 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         }
 
         binding.settingButton.setOnClickListener {
-            if(binding.searchLayout.isVisible) {
+            if (binding.searchLayout.isVisible) {
                 binding.searchLayout.isVisible = false
             }
             binding.settingLayout.isVisible = !binding.settingLayout.isVisible
         }
 
-        binding.includeLayout.plusCount.setOnClickListener {
-            textSizeUp()
-        }
+        binding.includeLayout.plusCount.setOnTouchListener(object : View.OnTouchListener {
+            override fun onTouch(view: View, event: MotionEvent?): Boolean {
+                event ?: return false
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        textSizeUp()
+                        (view as TextView).setTextColor(Color.parseColor("#ffffbb33"))
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        (view as TextView).setTextColor(Color.parseColor("#ffffffff"))
+                    }
+                }
+                return true
+            }
+        })
 
-        binding.includeLayout.minusCount.setOnClickListener {
-            textSizeDown()
-        }
+        binding.includeLayout.minusCount.setOnTouchListener(object : View.OnTouchListener {
+            override fun onTouch(view: View, event: MotionEvent?): Boolean {
+                event ?: return false
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        textSizeDown()
+                        (view as TextView).setTextColor(Color.parseColor("#ffffbb33"))
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        (view as TextView).setTextColor(Color.parseColor("#ffffffff"))
+                    }
+                }
+                return true
+            }
+        })
+
     }
 
     private fun textSizeDown() {
@@ -231,6 +266,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         if (count > 1) {
             count -= 1
             binding.includeLayout.centerCount.text = count.toString()
+            textViewModel.currentPageData = data[textViewModel.pagePosition]
             changeCountRender(count)
         }
     }
@@ -242,6 +278,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         var count = textViewModel.textSize
         if (count < 3) {
             count += 1
+            textViewModel.currentPageData = data[textViewModel.pagePosition]
             binding.includeLayout.centerCount.text = count.toString()
             changeCountRender(count)
         }
@@ -271,7 +308,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         }
     }
 
-    private fun changeRatio(width:Int, height:Int, dimen:Int) {
+    private fun changeRatio(width: Int, height: Int, dimen: Int) {
         textViewModel.textSizeDimen = resources.getDimension(dimen)
         resize(width, height)
 
@@ -311,12 +348,9 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
             override fun onGlobalLayout() {
                 binding.root.viewTreeObserver.removeOnGlobalLayoutListener(this)
                 // landscape 일때 데이터 저장.
-                textViewModel.aWidth = binding.root.width
-                textViewModel.aHeight = binding.root.height
+                saveDataUri()
                 Log.d(TAG, "width : ${textViewModel.aWidth}")
                 Log.d(TAG, "height : ${textViewModel.aHeight}")
-
-                saveDataUri()
             }
         })
     }
@@ -385,15 +419,15 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         binding.viewPager.currentItem = textViewModel.pagePosition
     }
 
-    private fun dataRefresh(pageRefresh:Boolean) {
+    private fun dataRefresh(pageRefresh: Boolean) {
         if (data.isNotEmpty()) {
             data.clear()
         }
-        if(pageRefresh) {
+        if (pageRefresh) {
             textViewModel.pagePosition = 0
+            textViewModel.currentPageData = ""
         }
         textViewModel.displayName = ""
-        textViewModel.currentPageData = ""
     }
 
     private fun textReadProcess() {
@@ -508,7 +542,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     }
 
     private fun setSearchVisible(it: Boolean) {
-        if(binding.settingLayout.isVisible) {
+        if (binding.settingLayout.isVisible) {
             binding.settingLayout.isVisible = it.not()
             binding.toolBarLayout.isVisible = it.not()
             return
@@ -544,7 +578,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
             Log.d(TAG, "realPath : $realPath")
             val uriPath = textViewModel.contentUri?.path!!
             Log.d(TAG, "uriPath : $uriPath")
-            if(uriPath.contains(textViewModel.displayName)) {
+            if (uriPath.contains(textViewModel.displayName)) {
                 realPath = uriPath.substringAfter(":")
             }
 
@@ -564,13 +598,6 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         AlertDialog.Builder(this)
             .setMessage("종료 하시겠습니까?")
             .setPositiveButton("확인") { _, _ ->
-                PreferenceJsonUtil.putSavePreference(
-                    this,
-                    "uri",
-                    textViewModel.contentUri.toString(),
-                    PreferenceJsonUtil.URI_SAVE
-                )
-                binding.viewPager.unregisterOnPageChangeCallback(pageChangeListener)
                 super.onBackPressed()
             }.setNegativeButton("취소") { _, _ -> }
             .setCancelable(false)
@@ -581,53 +608,32 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         if (data.isNotEmpty()) {
             textViewModel.currentPageData = data[textViewModel.pagePosition]
             textViewModel.dataSize = data.size - 1
-            PreferenceJsonUtil.putSavePreference(
-                this,
-                "uri",
-                textViewModel.contentUri.toString(),
-                PreferenceJsonUtil.URI_SAVE
-            )
-            val orientation = resources.configuration.orientation
-            // landscape 일때 데이터 저장.
-            if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
-                landScapeExit()
-            } else {
-                // portrait 일때 데이터 저장.
-                portraitExit()
-            }
+            saveDataPreference(SaveData())
         }
         super.onStop()
     }
 
-    private fun portraitExit() {
-        PreferenceJsonUtil.putSavePreference(
-            this,
-            "page",
-            textViewModel.pagePosition,
-            PreferenceJsonUtil.PAGE_SAVE
-        )
-        PreferenceJsonUtil.putSavePreference(
-            this,
-            "landscape",
-            "",
-            PreferenceJsonUtil.LAND_DATA
-        )
+    private fun saveDataPreference(saveData: SaveData) {
+        val orientation = resources.configuration.orientation
+        if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            saveData.page = textViewModel.pagePosition
+            saveData.landData = ""
+        } else {
+            saveData.page = -1
+            saveData.landData = data[textViewModel.pagePosition]
+        }
+
+        saveData.apply {
+            uri = textViewModel.contentUri.toString()
+            textSize = binding.includeLayout.centerCount.text.sToInt()
+            textDimension = textViewModel.textSizeDimen
+            widthCountRatio = textViewModel.widthCountRatio
+            heightLineRatio = textViewModel.heightLineRatio
+        }
+        PreferenceJsonUtil.putSaveObject(this, "data", saveData, PreferenceJsonUtil.SAVE_DATA)
     }
 
-    private fun landScapeExit() {
-        PreferenceJsonUtil.putSavePreference(
-            this,
-            "landscape",
-            data[textViewModel.pagePosition],
-            PreferenceJsonUtil.LAND_DATA
-        )
-        PreferenceJsonUtil.putSavePreference(
-            this,
-            "page",
-            -1,
-            PreferenceJsonUtil.PAGE_SAVE
-        )
-    }
+    private fun CharSequence.sToInt() = this.toString().toInt()
 
     override fun onDestroy() {
         if (!isChangingConfigurations) {

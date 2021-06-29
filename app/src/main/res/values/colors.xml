@@ -10,4 +10,5 @@
     <color name="dark_gray">#FF000000</color>
     <color name="night_mode">#31F3A41E</color>
     <color name="count_layout_color">#2AFFFFFF</color>
+    <color name="orange_color">#ffffbb33</color>
 </resources>

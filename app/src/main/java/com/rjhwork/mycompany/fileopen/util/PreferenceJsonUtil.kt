@@ -3,7 +3,9 @@ package com.rjhwork.mycompany.fileopen.util
 import android.content.Context
 import android.util.Log
 import androidx.core.content.edit
+import com.google.gson.Gson
 import com.rjhwork.mycompany.fileopen.TAG
+import com.rjhwork.mycompany.fileopen.model.SaveData
 import org.json.JSONArray
 import org.json.JSONException
 
@@ -13,6 +15,24 @@ class PreferenceJsonUtil {
         const val PAGE_SAVE = "page"
         const val URI_SAVE = "uri"
         const val LAND_DATA = "landscape"
+        const val SAVE_DATA = "data"
+
+        fun putSaveObject(context:Context, key:String, value:SaveData, spKey: String) {
+            val preference = context.getSharedPreferences(spKey, Context.MODE_PRIVATE)
+            val gson = Gson()
+            val json = gson.toJson(value)
+            preference.edit {
+                putString(key, json)
+                apply()
+            }
+        }
+
+        fun getSaveObject(context: Context, key: String, spKey: String): SaveData? {
+            val gson = Gson()
+            val json = context.getSharedPreferences(spKey, Context.MODE_PRIVATE).getString(key, null) ?: return null
+            val data = gson.fromJson(json, SaveData::class.java)
+            return data
+        }
 
         fun putSavePreference(context: Context, key: String, value: Int, spKey: String) {
             val preference = context.getSharedPreferences(spKey, Context.MODE_PRIVATE)

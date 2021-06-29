@@ -17,7 +17,7 @@ class TextViewModel : ViewModel() {
         set(value) {
             field = value
             // width 22 textCount
-            textCount = ((aWidth / 46).toFloat())
+            textCount = ((aWidth / widthCountRatio).toFloat())
         }
 
     // 화면의 세로 넓이 픽셀
@@ -25,7 +25,7 @@ class TextViewModel : ViewModel() {
         set(value) {
             field = value
             // height = 16 line
-            maxLine = (aHeight / 129)
+            maxLine = (aHeight / heightLineRatio)
         }
 
     var pagePosition = 0
