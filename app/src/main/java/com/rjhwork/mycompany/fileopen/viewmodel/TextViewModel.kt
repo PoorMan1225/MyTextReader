@@ -11,7 +11,7 @@ class TextViewModel : ViewModel() {
 
     // 하면의 가로 넓이 픽셀
     var widthCountRatio = 46
-    var heightLineRatio = 129
+    var heightLineRatio = 137
 
     var aWidth = 0
         set(value) {
@@ -32,7 +32,7 @@ class TextViewModel : ViewModel() {
 
     var currentPageData:String = ""
 
-    var dataSize = 0
+    var beforeDataSize = 0
 
     var displayName:String = ""
 

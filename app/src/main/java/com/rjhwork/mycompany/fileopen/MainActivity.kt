@@ -30,10 +30,7 @@ import com.hbisoft.pickit.PickiTCallbacks
 import com.rjhwork.mycompany.fileopen.adapter.TextPageAdapter
 import com.rjhwork.mycompany.fileopen.databinding.ActivityMainBinding
 import com.rjhwork.mycompany.fileopen.model.SaveData
-import com.rjhwork.mycompany.fileopen.thread.RotatePageSearchTask
-import com.rjhwork.mycompany.fileopen.thread.SearchTask
-import com.rjhwork.mycompany.fileopen.thread.TextSplitThread
-import com.rjhwork.mycompany.fileopen.thread.ThreadPoolManager
+import com.rjhwork.mycompany.fileopen.thread.*
 import com.rjhwork.mycompany.fileopen.util.PreferenceJsonUtil
 import com.rjhwork.mycompany.fileopen.util.UniversalDetectorUtil
 import com.rjhwork.mycompany.fileopen.viewmodel.TextViewModel
@@ -91,7 +88,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         textViewModel.heightLineRatio = data.heightLineRatio
         textViewModel.aWidth = binding.root.width
         textViewModel.aHeight = binding.root.height
-        binding.includeLayout.centerCount.text = data.textSize.toString()
+        binding.textSizeCount.centerCount.text = data.textSize.toString()
 
         val uri = Uri.parse(data.uri)
         textViewModel.contentUri = uri
@@ -224,62 +221,77 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
             binding.settingLayout.isVisible = !binding.settingLayout.isVisible
         }
 
-        binding.includeLayout.plusCount.setOnTouchListener(object : View.OnTouchListener {
-            override fun onTouch(view: View, event: MotionEvent?): Boolean {
-                event ?: return false
-                when (event.action) {
-                    MotionEvent.ACTION_DOWN -> {
-                        textSizeUp()
-                        (view as TextView).setTextColor(Color.parseColor("#ffffbb33"))
-                    }
-                    MotionEvent.ACTION_UP -> {
-                        (view as TextView).setTextColor(Color.parseColor("#ffffffff"))
-                    }
-                }
-                return true
-            }
-        })
+        // 글자 크기 변경.
+        binding.textSizeCount.plusCount.setOnTouchListener(changeTextSizeListener)
+        binding.textSizeCount.minusCount.setOnTouchListener(changeTextSizeListener)
 
-        binding.includeLayout.minusCount.setOnTouchListener(object : View.OnTouchListener {
-            override fun onTouch(view: View, event: MotionEvent?): Boolean {
-                event ?: return false
-                when (event.action) {
-                    MotionEvent.ACTION_DOWN -> {
-                        textSizeDown()
-                        (view as TextView).setTextColor(Color.parseColor("#ffffbb33"))
-                    }
-                    MotionEvent.ACTION_UP -> {
-                        (view as TextView).setTextColor(Color.parseColor("#ffffffff"))
-                    }
-                }
-                return true
-            }
-        })
+        // 배경, 글자색 변경.
+        binding.textBackColor.color1.setOnClickListener {
 
+        }
+
+        binding.textBackColor.color2.setOnClickListener {
+
+        }
+
+        binding.textBackColor.color3.setOnClickListener {
+
+        }
+
+        binding.textBackColor.color4.setOnClickListener {
+
+        }
+    }
+
+    private val changeTextSizeListener = object : View.OnTouchListener {
+        override fun onTouch(view: View, event: MotionEvent?): Boolean {
+            event ?: return false
+
+            when ((view as TextView).id) {
+                R.id.plusCount -> changeUpDownColor(event, view, 1)
+                R.id.minusCount -> changeUpDownColor(event, view, -1)
+            }
+            return true
+        }
+    }
+
+    private fun changeUpDownColor(event: MotionEvent, view: View, check: Int) {
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                if (check == -1) textSizeDown() else textSizeUp()
+                (view as TextView).setTextColor(Color.parseColor("#ffffbb33"))
+            }
+            MotionEvent.ACTION_UP -> {
+                mHandler.postDelayed({
+                    (view as TextView).setTextColor(Color.parseColor("#ffffffff"))
+                }, 100)
+            }
+        }
     }
 
     private fun textSizeDown() {
-        val text = binding.includeLayout.centerCount.text.toString()
+        val text = binding.textSizeCount.centerCount.text.toString()
         textViewModel.textSize = text.toInt()
 
         var count = textViewModel.textSize
         if (count > 1) {
             count -= 1
-            binding.includeLayout.centerCount.text = count.toString()
+            binding.textSizeCount.centerCount.text = count.toString()
             textViewModel.currentPageData = data[textViewModel.pagePosition]
+            Log.d(TAG, "data : ${textViewModel.currentPageData}")
             changeCountRender(count)
         }
     }
 
     private fun textSizeUp() {
-        val text = binding.includeLayout.centerCount.text.toString()
+        val text = binding.textSizeCount.centerCount.text.toString()
         textViewModel.textSize = text.toInt()
 
         var count = textViewModel.textSize
         if (count < 3) {
             count += 1
             textViewModel.currentPageData = data[textViewModel.pagePosition]
-            binding.includeLayout.centerCount.text = count.toString()
+            binding.textSizeCount.centerCount.text = count.toString()
             changeCountRender(count)
         }
     }
@@ -302,14 +314,15 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
 
     private fun changeCountRender(count: Int) {
         when (count) {
-            1 -> changeRatio(46, 129, R.dimen.textSizeS)
-            2 -> changeRatio(56, 137, R.dimen.textSizeM)
-            3 -> changeRatio(72, 147, R.dimen.textSizeL)
+            1 -> changeRatio(46, 137, R.dimen.textSizeS)
+            2 -> changeRatio(56, 147, R.dimen.textSizeM)
+            3 -> changeRatio(72, 158, R.dimen.textSizeL)
         }
     }
 
     private fun changeRatio(width: Int, height: Int, dimen: Int) {
         textViewModel.textSizeDimen = resources.getDimension(dimen)
+        textViewModel.beforeDataSize = data.size-1
         resize(width, height)
 
         textViewModel.contentUri ?: return
@@ -607,7 +620,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     override fun onStop() {
         if (data.isNotEmpty()) {
             textViewModel.currentPageData = data[textViewModel.pagePosition]
-            textViewModel.dataSize = data.size - 1
+            textViewModel.beforeDataSize = data.size - 1
             saveDataPreference(SaveData())
         }
         super.onStop()
@@ -615,7 +628,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
 
     private fun saveDataPreference(saveData: SaveData) {
         val orientation = resources.configuration.orientation
-        if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
+        if (orientation != Configuration.ORIENTATION_LANDSCAPE) {
             saveData.page = textViewModel.pagePosition
             saveData.landData = ""
         } else {
@@ -625,7 +638,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
 
         saveData.apply {
             uri = textViewModel.contentUri.toString()
-            textSize = binding.includeLayout.centerCount.text.sToInt()
+            textSize = binding.textSizeCount.centerCount.text.sToInt()
             textDimension = textViewModel.textSizeDimen
             widthCountRatio = textViewModel.widthCountRatio
             heightLineRatio = textViewModel.heightLineRatio

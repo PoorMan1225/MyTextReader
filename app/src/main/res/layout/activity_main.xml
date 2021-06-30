@@ -276,11 +276,30 @@
                     android:layout_gravity="center"
                     android:layout_marginStart="10dp"
                     android:layout_weight="1"
+                    android:text="배경색"
+                    android:textColor="@color/white" />
+
+                <include
+                    android:id="@+id/textBackColor"
+                    layout="@layout/color_button_layout" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="5dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:layout_marginStart="10dp"
+                    android:layout_weight="1"
                     android:text="글자 크기"
                     android:textColor="@color/white" />
 
                 <include
-                    android:id="@+id/includeLayout"
+                    android:id="@+id/textSizeCount"
                     layout="@layout/count_button_layout" />
             </LinearLayout>
         </LinearLayout>

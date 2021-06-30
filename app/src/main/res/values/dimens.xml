@@ -8,4 +8,9 @@
     <dimen name="textSizeS">15sp</dimen>
     <dimen name="textSizeM">18sp</dimen>
     <dimen name="textSizeL">21sp</dimen>
+
+    <!--colorButtonRadius-->
+    <dimen name="colorButtonRadius">12dp</dimen>
+    <dimen name="colorShapeRadius">10dp</dimen>
+    <dimen name="strokeWidth">3dp</dimen>
 </resources>
