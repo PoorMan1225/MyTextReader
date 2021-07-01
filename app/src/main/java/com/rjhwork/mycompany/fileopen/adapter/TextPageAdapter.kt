@@ -8,6 +8,7 @@ import android.text.style.ForegroundColorSpan
 import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.databinding.DataBindingUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.rjhwork.mycompany.fileopen.R
@@ -17,7 +18,9 @@ class TextPageAdapter(
     val context: Context,
     private val textData: MutableList<String>,
     private val searchViewVisibleListener: (Boolean) -> Unit,
-    private val setTextSizeListener: () -> Float
+    private val setTextSizeListener: () -> Float,
+    private val setColorChangeListener: () -> Pair<Int, Int>,
+    private val setLineSpacingChangeListener: () -> Float
 ) :
     RecyclerView.Adapter<TextPageAdapter.ViewHolder>() {
 
@@ -27,8 +30,24 @@ class TextPageAdapter(
     inner class ViewHolder(private val binding: ItemTextBinding) :
         RecyclerView.ViewHolder(binding.root) {
         fun bind(data: String) {
+
+            val colorPair = setColorChangeListener.invoke()
+            if(colorPair.first == 0 && colorPair.second == 0) {
+                binding.itemBackground.setBackgroundColor(ContextCompat.getColor(context, R.color.color1))
+                binding.textView.setTextColor(ContextCompat.getColor(context, R.color.color4))
+            }else {
+                binding.itemBackground.setBackgroundColor(ContextCompat.getColor(context, colorPair.first))
+                binding.textView.setTextColor(ContextCompat.getColor(context, colorPair.second))
+            }
+
             val size = setTextSizeListener.invoke()
             // 동적으로 text size 변경.
+            val lineSpace = setLineSpacingChangeListener.invoke()
+
+            // dp 를 px 로 변경
+            binding.textView.setLineSpacing(lineSpace, 1.0f)
+
+            // sp 를 px 로 변경
             binding.textView.setTextSize(TypedValue.COMPLEX_UNIT_PX, size)
             binding.textView.text = data
             binding.root.setOnClickListener {

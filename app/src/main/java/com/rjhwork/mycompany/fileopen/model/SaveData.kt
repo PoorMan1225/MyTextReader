@@ -6,6 +6,9 @@ data class SaveData(
     var landData:String = "",
     var textSize:Int = 1,
     var textDimension:Float = 0f,
-    var widthCountRatio:Int = 46,
-    var heightLineRatio:Int = 129
+    var widthCountRatio:Int = 0,
+    var heightLineRatio:Int = 0,
+    var backgroundColor:Int = 0,
+    var textColor: Int = 0,
+    var lineSpace: Float = 0f
 )

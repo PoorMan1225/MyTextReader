@@ -30,7 +30,7 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent">
 
-                <ImageButton
+                <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/emptyFileOpenButton"
                     android:layout_width="50dp"
                     android:layout_height="50dp"
@@ -72,25 +72,31 @@
                 android:layout_weight="3"
                 android:gravity="center">
 
-                <ImageButton
+                <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/bookMarkButton"
                     android:layout_width="30dp"
                     android:layout_height="30dp"
-                    android:background="@drawable/ic_baseline_bookmark_24" />
+                    app:srcCompat="@drawable/ic_baseline_bookmark_24"
+                    android:background="?attr/selectableItemBackground"
+                     />
 
-                <ImageButton
+                <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/fileOpenButton"
                     android:layout_width="30dp"
                     android:layout_height="30dp"
                     android:layout_marginStart="10dp"
-                    android:background="@drawable/ic_baseline_folder_open_24" />
+                    app:srcCompat="@drawable/ic_baseline_folder_open_24"
+                    android:background="?attr/selectableItemBackground"
+                     />
 
-                <ImageButton
+                <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/settingButton"
                     android:layout_width="30dp"
                     android:layout_height="30dp"
                     android:layout_marginStart="10dp"
-                    android:background="@drawable/ic_baseline_settings_24" />
+                    app:srcCompat="@drawable/ic_baseline_settings_24"
+                    android:background="?attr/selectableItemBackground"
+                     />
             </LinearLayout>
         </LinearLayout>
 
@@ -125,14 +131,16 @@
                 android:padding="12dp"
                 android:weightSum="13">
 
-                <EditText
+                <androidx.appcompat.widget.AppCompatEditText
                     android:id="@+id/edtSearch"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="20dp"
-                    android:layout_weight="10" />
+                    android:layout_weight="10"
+                    android:textColor="@color/white"
+                    />
 
-                <ImageButton
+                <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/search"
                     android:layout_width="30dp"
                     android:layout_height="50dp"
@@ -141,7 +149,7 @@
                     android:padding="30dp"
                     android:src="@drawable/ic_baseline_search_24" />
 
-                <ImageButton
+                <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/back"
                     android:layout_width="30dp"
                     android:layout_height="50dp"
@@ -149,7 +157,7 @@
                     android:background="?attr/selectableItemBackground"
                     android:src="@drawable/ic_baseline_arrow_back_24" />
 
-                <ImageButton
+                <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/forward"
                     android:layout_width="30dp"
                     android:layout_height="50dp"
@@ -223,7 +231,7 @@
                 android:orientation="horizontal"
                 android:weightSum="10">
 
-                <ImageButton
+                <androidx.appcompat.widget.AppCompatImageButton
                     android:layout_width="30dp"
                     android:layout_height="30dp"
                     android:layout_gravity="center"
@@ -300,6 +308,25 @@
 
                 <include
                     android:id="@+id/textSizeCount"
+                    layout="@layout/count_button_layout" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="5dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:layout_marginStart="10dp"
+                    android:layout_weight="1"
+                    android:text="줄 간격"
+                    android:textColor="@color/white" />
+
+                <include
+                    android:id="@+id/lineSpacingCount"
                     layout="@layout/count_button_layout" />
             </LinearLayout>
         </LinearLayout>

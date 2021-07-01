@@ -5,11 +5,13 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <LinearLayout
+        android:id="@+id/backLayout"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="@color/black">
 
         <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/itemBackground"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_marginVertical="@dimen/verticalMargin"

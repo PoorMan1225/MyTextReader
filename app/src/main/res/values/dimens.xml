@@ -9,6 +9,12 @@
     <dimen name="textSizeM">18sp</dimen>
     <dimen name="textSizeL">21sp</dimen>
 
+    <!--textLineSpacing-->
+    <dimen name="lineSpacing1">0dp</dimen>
+    <dimen name="lineSpacing2">5dp</dimen>
+    <dimen name="lineSpacing3">10dp</dimen>
+    <dimen name="lineSpacing4">15dp</dimen>
+
     <!--colorButtonRadius-->
     <dimen name="colorButtonRadius">12dp</dimen>
     <dimen name="colorShapeRadius">10dp</dimen>

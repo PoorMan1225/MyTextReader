@@ -8,7 +8,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.database.Cursor
-import android.graphics.Color
 import android.net.Uri
 import android.os.*
 import android.provider.OpenableColumns
@@ -19,7 +18,6 @@ import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.databinding.DataBindingUtil
@@ -65,34 +63,52 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         // empty layout 을 보여준다.
         val data = PreferenceJsonUtil.getSaveObject(this, "data", PreferenceJsonUtil.SAVE_DATA)
         if (data == null) {
-            textViewModel.aWidth = binding.root.width
-            textViewModel.aHeight = binding.root.height
-            textViewModel.textSizeDimen = resources.getDimension(R.dimen.textSizeS)
+            textViewModel.apply {
+                widthCountRatio = 46
+                heightLineRatio = 137
+                textLineSpacing = resources.getDimension(R.dimen.lineSpacing3)
+                binding.lineSpacingCount.centerCount.text = 3.toString()
+                aWidth = binding.root.width
+                aHeight = binding.root.height
+                textSizeDimen = resources.getDimension(R.dimen.textSizeS)
+                landScapeOffset()
+            }
+
             firstEnableButtonAndLayout(true)
             return
         }
 
         firstEnableButtonAndLayout(false)
+
+        // data 를 한번 가져온적이 있을 때
         restoreData(data)
     }
 
     private fun restoreData(data: SaveData) {
-        if (data.page != -1 && data.landData.isBlank()) {
-            textViewModel.pagePosition = data.page  // portrait 경우
-        } else {
-            textViewModel.currentPageData = data.landData // landscape 의 경우
-        }
-        textViewModel.textSizeDimen = data.textDimension
-        textViewModel.textSize = data.textSize
-        textViewModel.widthCountRatio = data.widthCountRatio
-        textViewModel.heightLineRatio = data.heightLineRatio
-        textViewModel.aWidth = binding.root.width
-        textViewModel.aHeight = binding.root.height
-        binding.textSizeCount.centerCount.text = data.textSize.toString()
 
-        val uri = Uri.parse(data.uri)
-        textViewModel.contentUri = uri
-        getFileUriAndRender(uri)
+        textViewModel.apply {
+            if (data.page != -1 && data.landData.isBlank()) {
+                pagePosition = data.page  // portrait 경우
+            } else {
+                currentPageData = data.landData // landscape 의 경우
+            }
+            textLineSpacing = data.lineSpace
+            textSizeDimen = data.textDimension
+            textSize = data.textSize
+            widthCountRatio = data.widthCountRatio
+            heightLineRatio = data.heightLineRatio
+            aWidth = binding.root.width
+            aHeight = binding.root.height
+            backGroundColor = data.backgroundColor
+            textColor = data.textColor
+
+            landScapeOffset()
+            binding.textSizeCount.centerCount.text = data.textSize.toString()
+
+            val uri = Uri.parse(data.uri)
+            contentUri = uri
+            getFileUriAndRender(uri)
+        }
     }
 
     private fun getFileUriAndRender(uri: Uri) {
@@ -160,14 +176,67 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         }
     }
 
-    @SuppressLint("ClickableViewAccessibility")
     override fun onStart() {
         super.onStart()
 
+        binding.viewPager.registerOnPageChangeCallback(pageChangeListener)
+
+        searchLayoutEvent()
+        centerLayoutEvent()
+        toolbarEvent()
+        settingLayoutEvent()
+    }
+
+    private fun centerLayoutEvent() {
         binding.emptyFileOpenButton.setOnClickListener {
             textReadProcess()
         }
 
+        binding.backButton.setOnClickListener {
+            forward()
+        }
+
+        binding.forwardButton.setOnClickListener {
+            backward()
+        }
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun settingLayoutEvent() {
+        // 글자 크기 변경.
+        binding.textSizeCount.plusCount.setOnTouchListener(changeTextSizeListener)
+        binding.textSizeCount.minusCount.setOnTouchListener(changeTextSizeListener)
+
+        // 배경, 글자색 변경.
+        binding.textBackColor.color1.setOnClickListener {
+            backTextColorChange(R.color.color1, R.color.black)
+        }
+
+        binding.textBackColor.color2.setOnClickListener {
+            backTextColorChange(R.color.color2, R.color.black)
+        }
+
+        binding.textBackColor.color3.setOnClickListener {
+            backTextColorChange(R.color.color3, R.color.black)
+        }
+
+        binding.textBackColor.color4.setOnClickListener {
+            backTextColorChange(R.color.color4, R.color.white)
+        }
+
+        // 줄 간격
+        binding.lineSpacingCount.plusCount.setOnTouchListener(changeLineSpacingListener)
+        binding.lineSpacingCount.minusCount.setOnTouchListener(changeLineSpacingListener)
+    }
+
+    private fun backTextColorChange(background: Int, textColor: Int) {
+        textViewModel.backGroundColor = background
+        textViewModel.textColor = textColor
+        adapter.notifyDataSetChanged()
+    }
+
+    private fun searchLayoutEvent() {
+        // 검색, 앞으로, 뒤로
         binding.search.setOnClickListener {
             startSearching("search")
         }
@@ -179,7 +248,6 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         binding.back.setOnClickListener {
             startSearching("back")
         }
-        binding.viewPager.registerOnPageChangeCallback(pageChangeListener)
 
         binding.seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
@@ -197,15 +265,9 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
                 binding.viewPager.currentItem = seekBar.progress
             }
         })
+    }
 
-        binding.backButton.setOnClickListener {
-            forward()
-        }
-
-        binding.forwardButton.setOnClickListener {
-            backward()
-        }
-
+    private fun toolbarEvent() {
         binding.fileOpenButton.setOnClickListener {
             textReadProcess()
         }
@@ -220,27 +282,66 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
             }
             binding.settingLayout.isVisible = !binding.settingLayout.isVisible
         }
+    }
 
-        // 글자 크기 변경.
-        binding.textSizeCount.plusCount.setOnTouchListener(changeTextSizeListener)
-        binding.textSizeCount.minusCount.setOnTouchListener(changeTextSizeListener)
+    private val changeLineSpacingListener = object : View.OnTouchListener {
+        override fun onTouch(view: View, event: MotionEvent?): Boolean {
+            event ?: return false
 
-        // 배경, 글자색 변경.
-        binding.textBackColor.color1.setOnClickListener {
-
+            when ((view as TextView).id) {
+                R.id.plusCount -> changeUpDownLineSpacing(event, view, 1)
+                R.id.minusCount -> changeUpDownLineSpacing(event, view, -1)
+            }
+            return true
         }
+    }
 
-        binding.textBackColor.color2.setOnClickListener {
-
+    private fun changeUpDownLineSpacing(event: MotionEvent, view: TextView, check: Int) {
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                if (check == -1) lineSizeDown() else lineSizeUp()
+                view.setTextColor(ContextCompat.getColor(this, R.color.orange_color))
+            }
+            MotionEvent.ACTION_UP -> {
+                mHandler.postDelayed({
+                    view.setTextColor(ContextCompat.getColor(this, R.color.color1))
+                }, 100)
+            }
         }
+    }
 
-        binding.textBackColor.color3.setOnClickListener {
+    private fun lineSizeDown() {
+        val text = binding.lineSpacingCount.centerCount.text.toString()
+        var count = text.toInt()
 
+        if (count > 1) {
+            count -= 1
+            binding.lineSpacingCount.centerCount.text = count.toString()
+            changeLineSpacingRender(count)
         }
+    }
 
-        binding.textBackColor.color4.setOnClickListener {
+    private fun lineSizeUp() {
+        val text = binding.lineSpacingCount.centerCount.text.toString()
+        var count = text.toInt()
 
+        if (count < 4) {
+            count += 1
+            binding.lineSpacingCount.centerCount.text = count.toString()
+            changeLineSpacingRender(count)
         }
+    }
+
+    private fun changeLineSpacingRender(count: Int) {
+        val line:Float = when (count) {
+            1 -> resources.getDimension(R.dimen.lineSpacing1)
+            2 -> resources.getDimension(R.dimen.lineSpacing2)
+            3 -> resources.getDimension(R.dimen.lineSpacing3)
+            4 -> resources.getDimension(R.dimen.lineSpacing4)
+            else -> 0f
+        }
+        textViewModel.textLineSpacing = line
+        adapter.notifyDataSetChanged()
     }
 
     private val changeTextSizeListener = object : View.OnTouchListener {
@@ -259,11 +360,11 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
                 if (check == -1) textSizeDown() else textSizeUp()
-                (view as TextView).setTextColor(Color.parseColor("#ffffbb33"))
+                (view as TextView).setTextColor(ContextCompat.getColor(this, R.color.orange_color))
             }
             MotionEvent.ACTION_UP -> {
                 mHandler.postDelayed({
-                    (view as TextView).setTextColor(Color.parseColor("#ffffffff"))
+                    (view as TextView).setTextColor(ContextCompat.getColor(this, R.color.color1))
                 }, 100)
             }
         }
@@ -278,7 +379,6 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
             count -= 1
             binding.textSizeCount.centerCount.text = count.toString()
             textViewModel.currentPageData = data[textViewModel.pagePosition]
-            Log.d(TAG, "data : ${textViewModel.currentPageData}")
             changeCountRender(count)
         }
     }
@@ -322,7 +422,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
 
     private fun changeRatio(width: Int, height: Int, dimen: Int) {
         textViewModel.textSizeDimen = resources.getDimension(dimen)
-        textViewModel.beforeDataSize = data.size-1
+        textViewModel.beforeDataSize = data.size - 1
         resize(width, height)
 
         textViewModel.contentUri ?: return
@@ -331,16 +431,26 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     }
 
     private fun resize(width: Int, height: Int) {
-        textViewModel.widthCountRatio = width
-        textViewModel.heightLineRatio = height
-        textViewModel.textCount = ((textViewModel.aWidth / textViewModel.widthCountRatio).toFloat())
-        textViewModel.maxLine = (textViewModel.aHeight / textViewModel.heightLineRatio)
+        textViewModel.apply {
+            widthCountRatio = width
+            heightLineRatio = height
+            textCount = ((aWidth / widthCountRatio).toFloat())
+            maxLine = (aHeight / heightLineRatio)
+            landScapeOffset()
+        }
+    }
+
+    private fun TextViewModel.landScapeOffset() {
+        val orientation = resources.configuration.orientation
+        if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            maxLine -= 1
+        }
     }
 
     private fun startSearching(key: String) {
-        if (binding.edtSearch.text.isNotEmpty()) {
+        if (binding.edtSearch.text.isNullOrEmpty().not()) {
             val searchText = binding.edtSearch.text
-            startSearchThread(searchText.length, searchText.toString(), key)
+            startSearchThread(searchText!!.length, searchText.toString(), key)
         } else {
             Toast.makeText(this, "검색어를 입력해주세요.", Toast.LENGTH_SHORT).show()
         }
@@ -418,10 +528,12 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     private fun updateAdapter(type: String) {
         Log.d(TAG, "searchIndex : $searchIndexList")
         if (type == "search") {
-            val pair = Pair(binding.edtSearch.text.length, searchIndexList)
-            adapter.apply {
-                keywordListener = { pair }
-                notifyItemChanged(textViewModel.pagePosition, "search")
+            binding.edtSearch.text?.let {
+                val pair = Pair(binding.edtSearch.text!!.length, searchIndexList)
+                adapter.apply {
+                    keywordListener = { pair }
+                    notifyItemChanged(textViewModel.pagePosition, "search")
+                }
             }
             return
         }
@@ -543,16 +655,24 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     }
 
     private fun displayPager() {
-        adapter = TextPageAdapter(this@MainActivity,
+        adapter = TextPageAdapter(
+            this@MainActivity,
             data,
             searchViewVisibleListener = { setSearchVisible(it) },
-            setTextSizeListener = { textViewModel.textSizeDimen }
+            setTextSizeListener = { textViewModel.textSizeDimen },
+            setColorChangeListener = { getBackTextColor() },
+            setLineSpacingChangeListener = { getLineSpace() }
         )
         adapter.setHasStableIds(true)
         binding.viewPager.adapter = adapter
         binding.viewPager.setCurrentItem(textViewModel.pagePosition, false)
         binding.titleTextView.text = textViewModel.displayName
     }
+
+    private fun getLineSpace() = textViewModel.textLineSpacing
+
+    private fun getBackTextColor(): Pair<Int, Int> =
+        Pair(textViewModel.backGroundColor, textViewModel.textColor)
 
     private fun setSearchVisible(it: Boolean) {
         if (binding.settingLayout.isVisible) {
@@ -642,6 +762,9 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
             textDimension = textViewModel.textSizeDimen
             widthCountRatio = textViewModel.widthCountRatio
             heightLineRatio = textViewModel.heightLineRatio
+            backgroundColor = textViewModel.backGroundColor
+            lineSpace = textViewModel.textLineSpacing
+            textColor = textViewModel.textColor
         }
         PreferenceJsonUtil.putSaveObject(this, "data", saveData, PreferenceJsonUtil.SAVE_DATA)
     }

@@ -10,8 +10,8 @@ class TextViewModel : ViewModel() {
     var maxLine = 0
 
     // 하면의 가로 넓이 픽셀
-    var widthCountRatio = 46
-    var heightLineRatio = 137
+    var widthCountRatio = 0
+    var heightLineRatio = 0
 
     var aWidth = 0
         set(value) {
@@ -41,4 +41,10 @@ class TextViewModel : ViewModel() {
     var textSize:Int = 1
 
     var textSizeDimen:Float = 0f
+
+    var textLineSpacing:Float = 0f
+
+    var textColor:Int = 0
+
+    var backGroundColor: Int = 0
 }

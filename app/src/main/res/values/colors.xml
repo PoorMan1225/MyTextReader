@@ -11,4 +11,13 @@
     <color name="night_mode">#31F3A41E</color>
     <color name="count_layout_color">#2AFFFFFF</color>
     <color name="orange_color">#ffffbb33</color>
+
+    <!--background color-->
+    <color name="color1">@color/white</color>
+    <color name="color2">#EAC186</color>
+    <color name="color3">#656464</color>
+    <color name="color4">@color/black</color>
+
+    <!--dialog color-->
+    <color name="dialog_negative_positive">?android:attr/textColorPrimary</color>
 </resources>
