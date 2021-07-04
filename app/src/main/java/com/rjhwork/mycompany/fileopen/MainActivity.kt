@@ -9,6 +9,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.database.Cursor
+import android.graphics.Typeface
 import android.net.Uri
 import android.os.*
 import android.provider.OpenableColumns
@@ -20,6 +21,8 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
+import androidx.core.content.res.ResourcesCompat.getFont
 import androidx.core.view.isVisible
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.ViewModelProvider
@@ -76,8 +79,10 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
                 textLineSpacing = resources.getDimension(R.dimen.lineSpacing3)
                 binding.lineSpacingCount.centerCount.text = 3.toString()
                 binding.textBackColor.color1.isSelected = true
+                binding.fontChangeLayout.serif.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.orange_color))
                 aWidth = binding.root.width
                 aHeight = binding.root.height
+                typeFace = getFont(this@MainActivity, R.font.noto_serif_semi_bold)
                 textSizeDimen = resources.getDimension(R.dimen.textSizeS)
                 displaySizeGetRatio(aWidth, aHeight)
             }
@@ -135,16 +140,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
             }
             textLineSpacing = data.lineSpace
 
-            val count = when (textLineSpacing) {
-                resources.getDimension(R.dimen.lineSpacing1) -> 1
-                resources.getDimension(R.dimen.lineSpacing2) -> 2
-                resources.getDimension(R.dimen.lineSpacing3) -> 3
-                resources.getDimension(R.dimen.lineSpacing4) -> 4
-                else -> 0
-            }
-
-            if (count > 0)
-                binding.lineSpacingCount.centerCount.text = count.toString()
+            restoreLineSpacing()
 
             textSizeDimen = data.textDimension
             textSize = data.textSize
@@ -152,19 +148,78 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
             aHeight = binding.root.height
             backGroundColor = data.backgroundColor
             textColor = data.textColor
+            typeFace = data.typeFace
+            restoreFontColor()
 
             displaySizeGetRatio(aWidth, aHeight)
             binding.textSizeCount.centerCount.text = data.textSize.toString()
-            when (backGroundColor) {
-                R.color.color1 -> colorSelected(1, true)
-                R.color.color2 -> colorSelected(2, true)
-                R.color.color3 -> colorSelected(3, true)
-                R.color.color4 -> colorSelected(4, true)
-            }
-
+            restoreBackgroundColor()
             val uri = Uri.parse(data.uri)
             contentUri = uri
             getFileUriAndRender(uri)
+        }
+    }
+
+    private fun TextViewModel.restoreBackgroundColor() {
+        when (backGroundColor) {
+            R.color.color1 -> colorSelected(1, true)
+            R.color.color2 -> colorSelected(2, true)
+            R.color.color3 -> colorSelected(3, true)
+            R.color.color4 -> colorSelected(4, true)
+        }
+    }
+
+    private fun TextViewModel.restoreLineSpacing() {
+        val count = when (textLineSpacing) {
+            resources.getDimension(R.dimen.lineSpacing1) -> 1
+            resources.getDimension(R.dimen.lineSpacing2) -> 2
+            resources.getDimension(R.dimen.lineSpacing3) -> 3
+            resources.getDimension(R.dimen.lineSpacing4) -> 4
+            else -> 0
+        }
+
+        if (count > 0)
+            binding.lineSpacingCount.centerCount.text = count.toString()
+    }
+
+    private fun TextViewModel.restoreFontColor() {
+        when (typeFace) {
+            getFont(
+                this@MainActivity,
+                R.font.noto_serif_semi_bold
+            ) -> binding.fontChangeLayout.serif.setTextColor(
+                ContextCompat.getColor(
+                    this@MainActivity,
+                    R.color.orange_color
+                )
+            )
+            getFont(
+                this@MainActivity,
+                R.font.gamja_flower_regular
+            ) -> binding.fontChangeLayout.gamja.setTextColor(
+                ContextCompat.getColor(
+                    this@MainActivity,
+                    R.color.orange_color
+                )
+            )
+            getFont(
+                this@MainActivity,
+                R.font.gothic_a1_regular
+            ) -> binding.fontChangeLayout.gothic.setTextColor(
+                ContextCompat.getColor(
+                    this@MainActivity,
+                    R.color.orange_color
+                )
+            )
+            getFont(
+                this@MainActivity,
+                R.font.nanum_myeungjo_regular
+            ) -> binding.fontChangeLayout.myeungJo.setTextColor(
+                ContextCompat.getColor(
+                    this@MainActivity,
+                    R.color.orange_color
+                )
+            )
         }
     }
 
@@ -306,6 +361,73 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
             override fun onStopTrackingTouch(seekBar: SeekBar?) {
             }
         })
+
+        // 글자 폰트
+        binding.fontChangeLayout.serif.setOnClickListener {
+            fontChangeColor("serif")
+        }
+
+        binding.fontChangeLayout.gamja.setOnClickListener {
+            fontChangeColor("gamja")
+        }
+
+        binding.fontChangeLayout.gothic.setOnClickListener {
+            fontChangeColor("gothic")
+        }
+
+        binding.fontChangeLayout.myeungJo.setOnClickListener {
+            fontChangeColor("myeungjo")
+        }
+    }
+
+    private fun fontChangeColor(s: String) {
+        var typeFace:Typeface? = null
+
+        when(s) {
+            "serif" -> {
+                binding.fontChangeLayout.apply {
+                    serif.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.orange_color))
+                    gamja.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.white))
+                    gothic.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.white))
+                    myeungJo.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.white))
+                }
+                typeFace = getFont(this@MainActivity, R.font.noto_serif_semi_bold)
+            }
+
+            "gamja" -> {
+                binding.fontChangeLayout.apply {
+                    serif.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.white))
+                    gamja.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.orange_color))
+                    gothic.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.white))
+                    myeungJo.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.white))
+                }
+                typeFace = getFont(this@MainActivity, R.font.gamja_flower_regular)
+            }
+            "gothic" -> {
+                binding.fontChangeLayout.apply {
+                    serif.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.white))
+                    gamja.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.white))
+                    gothic.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.orange_color))
+                    myeungJo.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.white))
+                }
+                typeFace = getFont(this@MainActivity, R.font.gothic_a1_regular)
+            }
+
+            "myeungjo" -> {
+                binding.fontChangeLayout.apply {
+                    serif.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.white))
+                    gamja.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.white))
+                    gothic.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.white))
+                    myeungJo.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.orange_color))
+                }
+                typeFace = getFont(this@MainActivity, R.font.nanum_myeungjo_regular)
+            }
+        }
+
+        typeFace?.let {
+            textViewModel.typeFace = it
+            adapter.notifyDataSetChanged()
+        }
     }
 
     private fun colorStateChange(flag: Boolean, check: Int, backColor: Int, textColor: Int) {
@@ -814,7 +936,8 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
             searchViewVisibleListener = { setSearchVisible(it) },
             setTextSizeListener = { textViewModel.textSizeDimen },
             setColorChangeListener = { getBackTextColor() },
-            setLineSpacingChangeListener = { getLineSpace() }
+            setLineSpacingChangeListener = { getLineSpace() },
+            setFontChangeListener = { getTypeFace() }
         )
         adapter.setHasStableIds(true)
         binding.viewPager.adapter = adapter
@@ -826,6 +949,11 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
 
     private fun getBackTextColor(): Pair<Int, Int> =
         Pair(textViewModel.backGroundColor, textViewModel.textColor)
+
+    private fun getTypeFace():Typeface {
+        val typeface = textViewModel.typeFace
+        return typeface!!
+    }
 
     private fun setSearchVisible(it: Boolean) {
         if (binding.settingLayout.isVisible) {
@@ -916,6 +1044,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
             lineSpace = textViewModel.textLineSpacing
             textColor = textViewModel.textColor
             beforeDataSize = data.size - 1
+            typeFace = textViewModel.typeFace
         }
         PreferenceJsonUtil.putSaveObject(this, "data", saveData, PreferenceJsonUtil.SAVE_DATA)
     }

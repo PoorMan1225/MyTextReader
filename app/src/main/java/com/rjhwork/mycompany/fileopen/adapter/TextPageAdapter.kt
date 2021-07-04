@@ -2,6 +2,7 @@ package com.rjhwork.mycompany.fileopen.adapter
 
 import android.content.Context
 import android.graphics.Color
+import android.graphics.Typeface
 import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.style.ForegroundColorSpan
@@ -22,7 +23,8 @@ class TextPageAdapter(
     private val searchViewVisibleListener: (Boolean) -> Unit,
     private val setTextSizeListener: () -> Float,
     private val setColorChangeListener: () -> Pair<Int, Int>,
-    private val setLineSpacingChangeListener: () -> Float
+    private val setLineSpacingChangeListener: () -> Float,
+    private val setFontChangeListener: () -> Typeface
 ) :
     RecyclerView.Adapter<TextPageAdapter.ViewHolder>() {
 
@@ -52,6 +54,10 @@ class TextPageAdapter(
 
             // sp 를 px 로 변경
             binding.textView.setTextSize(TypedValue.COMPLEX_UNIT_PX, size)
+
+            // font 변경
+            val typface = setFontChangeListener.invoke()
+            binding.textView.typeface = typface
             binding.textView.text = data
             binding.root.setOnClickListener {
                 searchViewVisibleListener(true)
@@ -59,8 +65,6 @@ class TextPageAdapter(
         }
 
         fun bind(spannable: SpannableStringBuilder) {
-            val size = setTextSizeListener.invoke()
-            binding.textView.setTextSize(TypedValue.COMPLEX_UNIT_PX, size)
             binding.textView.text = spannable
             binding.root.setOnClickListener {
                 searchViewVisibleListener(true)

@@ -41,6 +41,8 @@ class SearchTask(
             textViewModel.pagePosition = data.size - 1
         }
 
+        val pageSave = textViewModel.pagePosition
+
         for (i in textViewModel.pagePosition.dec() downTo 0) {
             textViewModel.pagePosition--
             val list = getIndexSearchData(data[i], searchLength, searchString) ?: continue
@@ -50,12 +52,18 @@ class SearchTask(
                 break
             }
         }
+
+        if(indexList.isEmpty()) {
+            textViewModel.pagePosition = pageSave
+        }
     }
 
     private fun forwardProcess() {
         if (textViewModel.pagePosition < 0) {
             textViewModel.pagePosition = 0
         }
+
+        val pageSave = textViewModel.pagePosition
 
         for (i in textViewModel.pagePosition.inc() until data.size) {
             textViewModel.pagePosition++
@@ -65,6 +73,10 @@ class SearchTask(
                 indexList += list
                 break
             }
+        }
+
+        if(indexList.isEmpty()) {
+            textViewModel.pagePosition = pageSave
         }
     }
 

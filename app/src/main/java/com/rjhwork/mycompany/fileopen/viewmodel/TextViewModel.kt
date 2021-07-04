@@ -1,5 +1,6 @@
 package com.rjhwork.mycompany.fileopen.viewmodel
 
+import android.graphics.Typeface
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 
@@ -10,10 +11,6 @@ class TextViewModel : ViewModel() {
 
     // 텍스트 가로 행 개수
     var maxLine = 0
-
-    // 하면의 가로 넓이 픽셀
-    var widthCountRatio = 0
-    var heightLineRatio = 0
 
     // 화면 가로 넓이 픽셀
     var aWidth = 0
@@ -50,6 +47,9 @@ class TextViewModel : ViewModel() {
 
     // 배경 색 설정
     var backGroundColor: Int = 0
+
+    // typface
+    var typeFace: Typeface? = null
 
     var checkTextError: Int = 0
 }
