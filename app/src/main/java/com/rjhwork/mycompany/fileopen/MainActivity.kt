@@ -1,6 +1,7 @@
 package com.rjhwork.mycompany.fileopen
 
 import android.Manifest
+import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
@@ -29,6 +30,7 @@ import com.rjhwork.mycompany.fileopen.adapter.TextPageAdapter
 import com.rjhwork.mycompany.fileopen.databinding.ActivityMainBinding
 import com.rjhwork.mycompany.fileopen.model.SaveData
 import com.rjhwork.mycompany.fileopen.thread.*
+import com.rjhwork.mycompany.fileopen.util.DisplayUtil
 import com.rjhwork.mycompany.fileopen.util.PreferenceJsonUtil
 import com.rjhwork.mycompany.fileopen.util.UniversalDetectorUtil
 import com.rjhwork.mycompany.fileopen.viewmodel.TextViewModel
@@ -47,6 +49,12 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     private lateinit var pickit: PickiT
     private lateinit var adapter: TextPageAdapter
 
+    private lateinit var params: WindowManager.LayoutParams
+
+    // 애니메이션 용도.
+    private var settingLayoutTop: Float = 0.0f
+    private var settingLayoutBottom: Float = 0.0f
+
     private val textViewModel: TextViewModel by lazy {
         ViewModelProvider(this).get(TextViewModel::class.java)
     }
@@ -55,6 +63,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         super.onCreate(savedInstanceState)
         init()
         getActivitySize()
+        getSettingLayoutSize()
         initDialog()
     }
 
@@ -64,14 +73,13 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         val data = PreferenceJsonUtil.getSaveObject(this, "data", PreferenceJsonUtil.SAVE_DATA)
         if (data == null) {
             textViewModel.apply {
-                widthCountRatio = 46
-                heightLineRatio = 137
                 textLineSpacing = resources.getDimension(R.dimen.lineSpacing3)
                 binding.lineSpacingCount.centerCount.text = 3.toString()
+                binding.textBackColor.color1.isSelected = true
                 aWidth = binding.root.width
                 aHeight = binding.root.height
                 textSizeDimen = resources.getDimension(R.dimen.textSizeS)
-                landScapeOffset()
+                displaySizeGetRatio(aWidth, aHeight)
             }
 
             firstEnableButtonAndLayout(true)
@@ -84,26 +92,75 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         restoreData(data)
     }
 
-    private fun restoreData(data: SaveData) {
+    private fun displaySizeGetRatio(aWidth: Int, aHeight: Int) {
+        textViewModel.textCount = DisplayUtil.getWidthDisplay(aWidth)
+        textViewModel.maxLine = DisplayUtil.getHeightDisplay(aHeight)
 
+        textSizeOffset()
+        landOffset(aHeight, aWidth)
+    }
+
+    private fun textSizeOffset() {
+        when(textViewModel.textSizeDimen) {
+            resources.getDimension(R.dimen.textSizeS) -> {
+                textViewModel.maxLine -= 0
+                textViewModel.textCount -= 0
+            }
+            resources.getDimension(R.dimen.textSizeM) -> {
+                textViewModel.maxLine -= 1
+                textViewModel.textCount -= 4
+            }
+            resources.getDimension(R.dimen.textSizeL) -> {
+                textViewModel.maxLine -= 2
+                textViewModel.textCount -= 8
+            }
+        }
+    }
+
+    private fun landOffset(aHeight: Int, aWidth: Int) {
+        val orientation = resources.configuration.orientation
+        if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            Log.d(TAG, "landOffSet: ${DisplayUtil.landLineOffset(aHeight,aWidth)}")
+            textViewModel.maxLine -= DisplayUtil.landLineOffset(aHeight, aWidth)
+        }
+    }
+
+    private fun restoreData(data: SaveData) {
         textViewModel.apply {
-            if (data.page != -1 && data.landData.isBlank()) {
+            if (data.landData.isBlank()) {
                 pagePosition = data.page  // portrait 경우
             } else {
                 currentPageData = data.landData // landscape 의 경우
+                beforeDataSize = data.beforeDataSize
             }
             textLineSpacing = data.lineSpace
+
+            val count = when (textLineSpacing) {
+                resources.getDimension(R.dimen.lineSpacing1) -> 1
+                resources.getDimension(R.dimen.lineSpacing2) -> 2
+                resources.getDimension(R.dimen.lineSpacing3) -> 3
+                resources.getDimension(R.dimen.lineSpacing4) -> 4
+                else -> 0
+            }
+
+            if (count > 0)
+                binding.lineSpacingCount.centerCount.text = count.toString()
+
             textSizeDimen = data.textDimension
             textSize = data.textSize
-            widthCountRatio = data.widthCountRatio
-            heightLineRatio = data.heightLineRatio
             aWidth = binding.root.width
             aHeight = binding.root.height
             backGroundColor = data.backgroundColor
             textColor = data.textColor
 
-            landScapeOffset()
+            displaySizeGetRatio(aWidth, aHeight)
             binding.textSizeCount.centerCount.text = data.textSize.toString()
+            when (backGroundColor) {
+                R.color.color1 -> colorSelected(1, true)
+                R.color.color2 -> colorSelected(2, true)
+                R.color.color3 -> colorSelected(3, true)
+                R.color.color4 -> colorSelected(4, true)
+            }
 
             val uri = Uri.parse(data.uri)
             contentUri = uri
@@ -134,6 +191,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         binding = DataBindingUtil.setContentView(this, R.layout.activity_main)
         pickit = PickiT(this, this, this)
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN)
+        params = window.attributes // 현재 밝기 정보 가져오기
     }
 
     // 최초 퍼미션 요청
@@ -187,6 +245,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         settingLayoutEvent()
     }
 
+
     private fun centerLayoutEvent() {
         binding.emptyFileOpenButton.setOnClickListener {
             textReadProcess()
@@ -203,30 +262,85 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
 
     @SuppressLint("ClickableViewAccessibility")
     private fun settingLayoutEvent() {
+
+        binding.splitLayout.isClickable = true
+
         // 글자 크기 변경.
         binding.textSizeCount.plusCount.setOnTouchListener(changeTextSizeListener)
         binding.textSizeCount.minusCount.setOnTouchListener(changeTextSizeListener)
 
         // 배경, 글자색 변경.
         binding.textBackColor.color1.setOnClickListener {
-            backTextColorChange(R.color.color1, R.color.black)
+            colorStateChange(true, 1, R.color.color1, R.color.black)
         }
 
         binding.textBackColor.color2.setOnClickListener {
-            backTextColorChange(R.color.color2, R.color.black)
+            colorStateChange(true, 2, R.color.color2, R.color.black)
         }
 
         binding.textBackColor.color3.setOnClickListener {
-            backTextColorChange(R.color.color3, R.color.black)
+            colorStateChange(true, 3, R.color.color3, R.color.black)
         }
 
         binding.textBackColor.color4.setOnClickListener {
-            backTextColorChange(R.color.color4, R.color.white)
+            colorStateChange(true, 4, R.color.color4, R.color.white)
         }
 
         // 줄 간격
         binding.lineSpacingCount.plusCount.setOnTouchListener(changeLineSpacingListener)
         binding.lineSpacingCount.minusCount.setOnTouchListener(changeLineSpacingListener)
+
+        // 화면 밝기
+        binding.lightSeekbar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (fromUser) {
+                    Log.d(TAG, "progress : $progress")
+                    params.screenBrightness = (progress / 100.0).toFloat()
+                    window.attributes = params
+                }
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {
+            }
+
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+            }
+        })
+    }
+
+    private fun colorStateChange(flag: Boolean, check: Int, backColor: Int, textColor: Int) {
+        colorSelected(check, flag)
+        backTextColorChange(backColor, textColor)
+    }
+
+    private fun colorSelected(check: Int, flag: Boolean) {
+        if (check == 1) {
+            binding.textBackColor.color1.isSelected = flag
+            binding.textBackColor.color2.isSelected = !flag
+            binding.textBackColor.color3.isSelected = !flag
+            binding.textBackColor.color4.isSelected = !flag
+        }
+
+        if (check == 2) {
+            binding.textBackColor.color1.isSelected = !flag
+            binding.textBackColor.color2.isSelected = flag
+            binding.textBackColor.color3.isSelected = !flag
+            binding.textBackColor.color4.isSelected = !flag
+        }
+
+        if (check == 3) {
+            binding.textBackColor.color1.isSelected = !flag
+            binding.textBackColor.color2.isSelected = !flag
+            binding.textBackColor.color3.isSelected = flag
+            binding.textBackColor.color4.isSelected = !flag
+        }
+
+        if (check == 4) {
+            binding.textBackColor.color1.isSelected = !flag
+            binding.textBackColor.color2.isSelected = !flag
+            binding.textBackColor.color3.isSelected = !flag
+            binding.textBackColor.color4.isSelected = flag
+        }
     }
 
     private fun backTextColorChange(background: Int, textColor: Int) {
@@ -236,6 +350,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     }
 
     private fun searchLayoutEvent() {
+
         // 검색, 앞으로, 뒤로
         binding.search.setOnClickListener {
             startSearching("search")
@@ -280,11 +395,20 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
             if (binding.searchLayout.isVisible) {
                 binding.searchLayout.isVisible = false
             }
-            binding.settingLayout.isVisible = !binding.settingLayout.isVisible
+
+            binding.settingLayout.isVisible = true
+
+            val heightAnimator = ObjectAnimator.ofFloat(
+                    binding.settingLayout,
+                    "y",
+                    settingLayoutBottom,
+                    settingLayoutTop).setDuration(500)
+            heightAnimator.start()
         }
     }
 
     private val changeLineSpacingListener = object : View.OnTouchListener {
+        @SuppressLint("ClickableViewAccessibility")
         override fun onTouch(view: View, event: MotionEvent?): Boolean {
             event ?: return false
 
@@ -333,7 +457,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     }
 
     private fun changeLineSpacingRender(count: Int) {
-        val line:Float = when (count) {
+        val line: Float = when (count) {
             1 -> resources.getDimension(R.dimen.lineSpacing1)
             2 -> resources.getDimension(R.dimen.lineSpacing2)
             3 -> resources.getDimension(R.dimen.lineSpacing3)
@@ -345,6 +469,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     }
 
     private val changeTextSizeListener = object : View.OnTouchListener {
+        @SuppressLint("ClickableViewAccessibility")
         override fun onTouch(view: View, event: MotionEvent?): Boolean {
             event ?: return false
 
@@ -378,7 +503,12 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         if (count > 1) {
             count -= 1
             binding.textSizeCount.centerCount.text = count.toString()
-            textViewModel.currentPageData = data[textViewModel.pagePosition]
+            textViewModel.apply {
+                checkTextError = -1
+                currentPageData = data[textViewModel.pagePosition]
+                textCount += 4
+                maxLine += 1
+            }
             changeCountRender(count)
         }
     }
@@ -390,8 +520,14 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         var count = textViewModel.textSize
         if (count < 3) {
             count += 1
-            textViewModel.currentPageData = data[textViewModel.pagePosition]
             binding.textSizeCount.centerCount.text = count.toString()
+
+            textViewModel.apply {
+                checkTextError = 1
+                currentPageData = data[textViewModel.pagePosition]
+                textCount -= 4
+                maxLine -= 1
+            }
             changeCountRender(count)
         }
     }
@@ -414,37 +550,19 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
 
     private fun changeCountRender(count: Int) {
         when (count) {
-            1 -> changeRatio(46, 137, R.dimen.textSizeS)
-            2 -> changeRatio(56, 147, R.dimen.textSizeM)
-            3 -> changeRatio(72, 158, R.dimen.textSizeL)
+            1 -> changeRatio(R.dimen.textSizeS)
+            2 -> changeRatio(R.dimen.textSizeM)
+            3 -> changeRatio(R.dimen.textSizeL)
         }
     }
 
-    private fun changeRatio(width: Int, height: Int, dimen: Int) {
+    private fun changeRatio(dimen: Int) {
         textViewModel.textSizeDimen = resources.getDimension(dimen)
         textViewModel.beforeDataSize = data.size - 1
-        resize(width, height)
 
         textViewModel.contentUri ?: return
         dataRefresh(false)
         getFileUriAndRender(textViewModel.contentUri!!)
-    }
-
-    private fun resize(width: Int, height: Int) {
-        textViewModel.apply {
-            widthCountRatio = width
-            heightLineRatio = height
-            textCount = ((aWidth / widthCountRatio).toFloat())
-            maxLine = (aHeight / heightLineRatio)
-            landScapeOffset()
-        }
-    }
-
-    private fun TextViewModel.landScapeOffset() {
-        val orientation = resources.configuration.orientation
-        if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            maxLine -= 1
-        }
     }
 
     private fun startSearching(key: String) {
@@ -478,9 +596,19 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         })
     }
 
-    private fun convertDPtoPixel(dp: Int): Int {
-        val scale = this.resources.displayMetrics.density
-        return (dp * scale + 0.5f).toInt()
+    private fun getSettingLayoutSize() {
+        binding.settingLayout.viewTreeObserver.addOnGlobalLayoutListener(object :
+            ViewTreeObserver.OnGlobalLayoutListener {
+            override fun onGlobalLayout() {
+                binding.settingLayout.viewTreeObserver.removeOnGlobalLayoutListener(this)
+
+                settingLayoutTop = binding.settingLayout.top.toFloat()
+                settingLayoutBottom = binding.settingLayout.bottom.toFloat()
+
+                Log.d(TAG, "top : $settingLayoutTop")
+                Log.d(TAG, "bottom : $settingLayoutBottom")
+            }
+        })
     }
 
     private fun initDialog() {
@@ -498,13 +626,24 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
                     if (textViewModel.currentPageData.isNotBlank()) {
                         rotatePageChange()
                     } else {
-                        initSeekBar()
-                        displayPager()
-                        dialog.dismiss()
+                        firstPageOpen()
                     }
                 }
             }
         }
+    }
+
+    private fun firstPageOpen() {
+        initLightBar()
+        initSeekBar()
+        displayPager()
+        dialog.dismiss()
+    }
+
+    private fun initLightBar() {
+        params.screenBrightness = 0.5f
+        binding.lightSeekbar.progress = 50
+        window.attributes = params
     }
 
     private fun emptyLayoutInVisible() {
@@ -517,12 +656,26 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
 
         try {
             future.get()
+            initLightBar()
             initSeekBar()
             displayPager()
             dialog.dismiss()
         } catch (e: Exception) {
             Log.e(TAG, "future error : ${e.message}")
+            Toast.makeText(this, "검색 실패!", Toast.LENGTH_SHORT).show()
+            errorFun()
         }
+    }
+
+    private fun errorFun() {
+        val count = binding.textSizeCount.centerCount.text.sToInt()
+        binding.textSizeCount.centerCount.text = if (textViewModel.checkTextError == -1) {
+            (count + 1).toString()
+        } else {
+            (count - 1).toString()
+        }
+        textViewModel.pagePosition = binding.viewPager.currentItem
+        dialog.dismiss()
     }
 
     private fun updateAdapter(type: String) {
@@ -749,22 +902,20 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     private fun saveDataPreference(saveData: SaveData) {
         val orientation = resources.configuration.orientation
         if (orientation != Configuration.ORIENTATION_LANDSCAPE) {
-            saveData.page = textViewModel.pagePosition
             saveData.landData = ""
         } else {
-            saveData.page = -1
             saveData.landData = data[textViewModel.pagePosition]
         }
 
         saveData.apply {
+            page = textViewModel.pagePosition
             uri = textViewModel.contentUri.toString()
             textSize = binding.textSizeCount.centerCount.text.sToInt()
             textDimension = textViewModel.textSizeDimen
-            widthCountRatio = textViewModel.widthCountRatio
-            heightLineRatio = textViewModel.heightLineRatio
             backgroundColor = textViewModel.backGroundColor
             lineSpace = textViewModel.textLineSpacing
             textColor = textViewModel.textColor
+            beforeDataSize = data.size - 1
         }
         PreferenceJsonUtil.putSaveObject(this, "data", saveData, PreferenceJsonUtil.SAVE_DATA)
     }

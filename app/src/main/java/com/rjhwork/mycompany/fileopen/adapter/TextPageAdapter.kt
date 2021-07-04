@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.style.ForegroundColorSpan
+import android.util.Log
 import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.ViewGroup
@@ -12,6 +13,7 @@ import androidx.core.content.ContextCompat
 import androidx.databinding.DataBindingUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.rjhwork.mycompany.fileopen.R
+import com.rjhwork.mycompany.fileopen.TAG
 import com.rjhwork.mycompany.fileopen.databinding.ItemTextBinding
 
 class TextPageAdapter(
@@ -41,6 +43,7 @@ class TextPageAdapter(
             }
 
             val size = setTextSizeListener.invoke()
+
             // 동적으로 text size 변경.
             val lineSpace = setLineSpacingChangeListener.invoke()
 

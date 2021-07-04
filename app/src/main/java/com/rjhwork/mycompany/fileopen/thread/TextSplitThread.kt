@@ -153,7 +153,7 @@ class TextSplitThread(
                 count = 0f
                 val l = line[i+1]
                 if (l == '.' || l == '!' || l == '?' || l == '"' || l == '“' || l == ',') {
-                    sb.append(".").append("\n")
+                    sb.append(l).append("\n")
                     i += 1
                 } else {
                     sb.append("\n")
@@ -168,9 +168,8 @@ class TextSplitThread(
 
     private fun checkWidth(c: Char): Float {
         return when {
-            ((c in 'a'..'z') || (c in '0'..'9')) -> 0.6f
-            ((c in 'A'..'Z') || c == '^' || c == '~') -> 0.6f
-            (c == '*' || c == '_' || c == '-' || c == '+' || c == '"' || c == ' ' || c == '?' || c == '/' || c == '”') -> 0.42f
+            ((c in 'a'..'z') || (c in '0'..'9') || (c in 'A'..'Z') || c == '^' || c == '~') -> 0.63f
+            (c == '*' || c == '_' || c == '-' || c == '+' || c == '"' || c == ' ' || c == '?' || c == '/' || c == '”') -> 0.63f
             (c == ',' || c =='\'' || c == '`' || c == '.' || c == ':' || c == ';' || c == '|') -> 0.23f
             (c == '!' || c == '(' || c == ')' || c == '{' || c == '}' || c == '[' || c == ']') -> 0.33f
             (c == '─') -> 1.1f

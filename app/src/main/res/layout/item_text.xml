@@ -20,7 +20,6 @@
             android:background="@color/white">
 
             <TextView
-                android:layout_marginTop="10dp"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
@@ -34,7 +33,7 @@
                 android:lineSpacingExtra="15dp"
                 android:textColor="@color/black"
                 android:textSize="15sp"
-                tools:text="ddd" />
+                tools:text="다람쥐 쳇바퀴에 타고파" />
         </androidx.constraintlayout.widget.ConstraintLayout>
     </LinearLayout>
 </layout>

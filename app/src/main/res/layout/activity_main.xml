@@ -64,39 +64,36 @@
             <View
                 android:layout_width="0dp"
                 android:layout_height="30dp"
-                android:layout_weight="7" />
+                android:layout_weight="6" />
 
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="3"
+                android:layout_weight="4"
                 android:gravity="center">
 
                 <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/bookMarkButton"
                     android:layout_width="30dp"
                     android:layout_height="30dp"
-                    app:srcCompat="@drawable/ic_baseline_bookmark_24"
                     android:background="?attr/selectableItemBackground"
-                     />
+                    app:srcCompat="@drawable/ic_baseline_bookmark_24" />
 
                 <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/fileOpenButton"
                     android:layout_width="30dp"
                     android:layout_height="30dp"
                     android:layout_marginStart="10dp"
-                    app:srcCompat="@drawable/ic_baseline_folder_open_24"
                     android:background="?attr/selectableItemBackground"
-                     />
+                    app:srcCompat="@drawable/ic_baseline_folder_open_24" />
 
                 <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/settingButton"
                     android:layout_width="30dp"
                     android:layout_height="30dp"
                     android:layout_marginStart="10dp"
-                    app:srcCompat="@drawable/ic_baseline_settings_24"
                     android:background="?attr/selectableItemBackground"
-                     />
+                    app:srcCompat="@drawable/ic_baseline_settings_24" />
             </LinearLayout>
         </LinearLayout>
 
@@ -137,8 +134,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="20dp"
                     android:layout_weight="10"
-                    android:textColor="@color/white"
-                    />
+                    android:textColor="@color/white" />
 
                 <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/search"
@@ -221,9 +217,8 @@
             android:layout_gravity="bottom"
             android:background="@drawable/layout_border"
             android:orientation="vertical"
-            android:visibility="gone"
-            tools:visibility="visible"
-            >
+            android:visibility="invisible"
+            tools:visibility="gone">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -244,6 +239,7 @@
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
                     android:layout_weight="9"
+                    android:max="100"
                     android:maxHeight="5dp"
                     android:minHeight="5dp"
                     android:progress="0"
@@ -274,62 +270,70 @@
             </LinearLayout>
 
             <LinearLayout
+                android:id="@+id/splitLayout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:padding="5dp">
+                android:orientation="vertical">
 
-                <TextView
-                    android:layout_width="0dp"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:layout_marginStart="10dp"
-                    android:layout_weight="1"
-                    android:text="배경색"
-                    android:textColor="@color/white" />
+                    android:padding="5dp">
 
-                <include
-                    android:id="@+id/textBackColor"
-                    layout="@layout/color_button_layout" />
-            </LinearLayout>
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:layout_marginStart="10dp"
+                        android:layout_weight="1"
+                        android:text="배경색"
+                        android:textColor="@color/white" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:padding="5dp">
+                    <include
+                        android:id="@+id/textBackColor"
+                        layout="@layout/color_button_layout" />
+                </LinearLayout>
 
-                <TextView
-                    android:layout_width="0dp"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:layout_marginStart="10dp"
-                    android:layout_weight="1"
-                    android:text="글자 크기"
-                    android:textColor="@color/white" />
+                    android:padding="5dp">
 
-                <include
-                    android:id="@+id/textSizeCount"
-                    layout="@layout/count_button_layout" />
-            </LinearLayout>
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:layout_marginStart="10dp"
+                        android:layout_weight="1"
+                        android:text="글자 크기"
+                        android:textColor="@color/white" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:padding="5dp">
+                    <include
+                        android:id="@+id/textSizeCount"
+                        layout="@layout/count_button_layout" />
+                </LinearLayout>
 
-                <TextView
-                    android:layout_width="0dp"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:layout_marginStart="10dp"
-                    android:layout_weight="1"
-                    android:text="줄 간격"
-                    android:textColor="@color/white" />
+                    android:padding="5dp">
 
-                <include
-                    android:id="@+id/lineSpacingCount"
-                    layout="@layout/count_button_layout" />
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:layout_marginStart="10dp"
+                        android:layout_weight="1"
+                        android:text="줄 간격"
+                        android:textColor="@color/white" />
+
+                    <include
+                        android:id="@+id/lineSpacingCount"
+                        layout="@layout/count_button_layout" />
+                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
+
 
         <View
             android:id="@+id/nightMode"
