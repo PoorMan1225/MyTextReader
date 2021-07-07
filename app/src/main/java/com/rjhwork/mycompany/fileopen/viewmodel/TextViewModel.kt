@@ -2,9 +2,22 @@ package com.rjhwork.mycompany.fileopen.viewmodel
 
 import android.graphics.Typeface
 import android.net.Uri
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.Transformations
 import androidx.lifecycle.ViewModel
+import com.rjhwork.mycompany.fileopen.database.TextRepository
+import com.rjhwork.mycompany.fileopen.model.Data
 
 class TextViewModel : ViewModel() {
+
+    private val textRepository: TextRepository = TextRepository.get()
+
+    fun addData(data: Data) = textRepository.addData(data)
+
+    fun getData(uri:String) = textRepository.getData(uri)
+
+    fun updateData(data:Data) = textRepository.updateData(data)
 
     // 텍스트 세로 열 개수
     var textCount = 0f
@@ -37,16 +50,18 @@ class TextViewModel : ViewModel() {
     var textSize:Int = 1
 
     // 리소 현재 사이즈 sp
-    var textSizeDimen:Float = 0f
+    var textSizeDimen:Int = 0
 
     // 줄간격 설정
-    var textLineSpacing:Float = 0f
+    var textLineSpacing:Int = 0
 
     // 글자 색 설정
     var textColor:Int = 0
 
     // 배경 색 설정
     var backGroundColor: Int = 0
+
+    var fontType:String = ""
 
     // typface
     var typeFace: Typeface? = null

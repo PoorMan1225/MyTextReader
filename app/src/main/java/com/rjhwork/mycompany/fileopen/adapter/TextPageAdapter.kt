@@ -36,13 +36,8 @@ class TextPageAdapter(
         fun bind(data: String) {
 
             val colorPair = setColorChangeListener.invoke()
-            if(colorPair.first == 0 && colorPair.second == 0) {
-                binding.itemBackground.setBackgroundColor(ContextCompat.getColor(context, R.color.color1))
-                binding.textView.setTextColor(ContextCompat.getColor(context, R.color.color4))
-            }else {
-                binding.itemBackground.setBackgroundColor(ContextCompat.getColor(context, colorPair.first))
-                binding.textView.setTextColor(ContextCompat.getColor(context, colorPair.second))
-            }
+            binding.itemBackground.setBackgroundColor(ContextCompat.getColor(context, colorPair.first))
+            binding.textView.setTextColor(ContextCompat.getColor(context, colorPair.second))
 
             val size = setTextSizeListener.invoke()
 

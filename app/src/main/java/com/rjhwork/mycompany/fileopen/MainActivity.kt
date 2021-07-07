@@ -5,6 +5,7 @@ import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
@@ -16,12 +17,12 @@ import android.provider.OpenableColumns
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import android.view.*
+import android.widget.PopupMenu
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
-import androidx.core.content.res.ResourcesCompat
 import androidx.core.content.res.ResourcesCompat.getFont
 import androidx.core.view.isVisible
 import androidx.databinding.DataBindingUtil
@@ -31,6 +32,7 @@ import com.hbisoft.pickit.PickiT
 import com.hbisoft.pickit.PickiTCallbacks
 import com.rjhwork.mycompany.fileopen.adapter.TextPageAdapter
 import com.rjhwork.mycompany.fileopen.databinding.ActivityMainBinding
+import com.rjhwork.mycompany.fileopen.model.Data
 import com.rjhwork.mycompany.fileopen.model.SaveData
 import com.rjhwork.mycompany.fileopen.thread.*
 import com.rjhwork.mycompany.fileopen.util.DisplayUtil
@@ -39,8 +41,10 @@ import com.rjhwork.mycompany.fileopen.util.UniversalDetectorUtil
 import com.rjhwork.mycompany.fileopen.viewmodel.TextViewModel
 import java.io.*
 import java.util.*
+import java.util.concurrent.Callable
 
 const val TAG = "MainActivity"
+const val DATA = "saveData"
 
 class MainActivity : AppCompatActivity(), PickiTCallbacks {
     private lateinit var binding: ActivityMainBinding
@@ -57,6 +61,8 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     // 애니메이션 용도.
     private var settingLayoutTop: Float = 0.0f
     private var settingLayoutBottom: Float = 0.0f
+
+    private var intentUri: String? = null
 
     private val textViewModel: TextViewModel by lazy {
         ViewModelProvider(this).get(TextViewModel::class.java)
@@ -76,14 +82,22 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         val data = PreferenceJsonUtil.getSaveObject(this, "data", PreferenceJsonUtil.SAVE_DATA)
         if (data == null) {
             textViewModel.apply {
-                textLineSpacing = resources.getDimension(R.dimen.lineSpacing3)
+                textLineSpacing = 2
                 binding.lineSpacingCount.centerCount.text = 3.toString()
                 binding.textBackColor.color1.isSelected = true
-                binding.fontChangeLayout.serif.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.orange_color))
+                binding.fontChangeLayout.serif.setTextColor(
+                    ContextCompat.getColor(
+                        this@MainActivity,
+                        R.color.orange_color
+                    )
+                )
+                backGroundColor = R.color.color1
+                textColor = R.color.color4
                 aWidth = binding.root.width
                 aHeight = binding.root.height
-                typeFace = getFont(this@MainActivity, R.font.noto_serif_semi_bold)
-                textSizeDimen = resources.getDimension(R.dimen.textSizeS)
+                fontType = "serif"
+                fontChangeColor(fontType)
+                textSizeDimen = 0
                 displaySizeGetRatio(aWidth, aHeight)
             }
 
@@ -94,7 +108,36 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         firstEnableButtonAndLayout(false)
 
         // data 를 한번 가져온적이 있을 때
-        restoreData(data)
+        if (intentUri == null) {
+            restoreData(data)
+        } else {
+            getBookMarkData()
+        }
+    }
+
+    private fun getBookMarkData() {
+        val future = threadPoolManager.executorService.submit(Callable<Data> {
+            return@Callable textViewModel.getData(intentUri!!)
+        })
+
+        try {
+            val data = future.get()
+            val saveData = SaveData().apply {
+                uri = data.uri
+                page = data.page
+                landData = data.landData
+                textSize = data.textSize
+                textDimension = data.textDimension
+                backgroundColor = data.backgroundColor
+                textColor = data.textColor
+                lineSpace = data.lineSpace
+                beforeDataSize = data.beforeDataSize
+                fontType = data.fontType
+            }
+            restoreData(saveData)
+        } catch (e: Exception) {
+            Log.e(TAG, "get book mark data Error : ${e.message}")
+        }
     }
 
     private fun displaySizeGetRatio(aWidth: Int, aHeight: Int) {
@@ -106,16 +149,16 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     }
 
     private fun textSizeOffset() {
-        when(textViewModel.textSizeDimen) {
-            resources.getDimension(R.dimen.textSizeS) -> {
+        when (textViewModel.textSizeDimen) {
+            0 -> {
                 textViewModel.maxLine -= 0
                 textViewModel.textCount -= 0
             }
-            resources.getDimension(R.dimen.textSizeM) -> {
+            1 -> {
                 textViewModel.maxLine -= 1
                 textViewModel.textCount -= 4
             }
-            resources.getDimension(R.dimen.textSizeL) -> {
+            2 -> {
                 textViewModel.maxLine -= 2
                 textViewModel.textCount -= 8
             }
@@ -125,30 +168,29 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     private fun landOffset(aHeight: Int, aWidth: Int) {
         val orientation = resources.configuration.orientation
         if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            Log.d(TAG, "landOffSet: ${DisplayUtil.landLineOffset(aHeight,aWidth)}")
+            Log.d(TAG, "landOffSet: ${DisplayUtil.landLineOffset(aHeight, aWidth)}")
             textViewModel.maxLine -= DisplayUtil.landLineOffset(aHeight, aWidth)
         }
     }
 
     private fun restoreData(data: SaveData) {
         textViewModel.apply {
-            if (data.landData.isBlank()) {
-                pagePosition = data.page  // portrait 경우
-            } else {
+            if (data.landData.isNotBlank()) {
                 currentPageData = data.landData // landscape 의 경우
                 beforeDataSize = data.beforeDataSize
             }
+
+            pagePosition = data.page
             textLineSpacing = data.lineSpace
-
             restoreLineSpacing()
-
             textSizeDimen = data.textDimension
             textSize = data.textSize
             aWidth = binding.root.width
             aHeight = binding.root.height
             backGroundColor = data.backgroundColor
             textColor = data.textColor
-            typeFace = data.typeFace
+            fontType = data.fontType
+            fontChangeColor(fontType)
             restoreFontColor()
 
             displaySizeGetRatio(aWidth, aHeight)
@@ -170,51 +212,33 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     }
 
     private fun TextViewModel.restoreLineSpacing() {
-        val count = when (textLineSpacing) {
-            resources.getDimension(R.dimen.lineSpacing1) -> 1
-            resources.getDimension(R.dimen.lineSpacing2) -> 2
-            resources.getDimension(R.dimen.lineSpacing3) -> 3
-            resources.getDimension(R.dimen.lineSpacing4) -> 4
-            else -> 0
-        }
+        val count = textLineSpacing + 1
 
         if (count > 0)
             binding.lineSpacingCount.centerCount.text = count.toString()
     }
 
     private fun TextViewModel.restoreFontColor() {
-        when (typeFace) {
-            getFont(
-                this@MainActivity,
-                R.font.noto_serif_semi_bold
-            ) -> binding.fontChangeLayout.serif.setTextColor(
+        when (fontType) {
+            "serif" -> binding.fontChangeLayout.serif.setTextColor(
                 ContextCompat.getColor(
                     this@MainActivity,
                     R.color.orange_color
                 )
             )
-            getFont(
-                this@MainActivity,
-                R.font.gamja_flower_regular
-            ) -> binding.fontChangeLayout.gamja.setTextColor(
+            "gamja" -> binding.fontChangeLayout.gamja.setTextColor(
                 ContextCompat.getColor(
                     this@MainActivity,
                     R.color.orange_color
                 )
             )
-            getFont(
-                this@MainActivity,
-                R.font.gothic_a1_regular
-            ) -> binding.fontChangeLayout.gothic.setTextColor(
+            "gothic" -> binding.fontChangeLayout.gothic.setTextColor(
                 ContextCompat.getColor(
                     this@MainActivity,
                     R.color.orange_color
                 )
             )
-            getFont(
-                this@MainActivity,
-                R.font.nanum_myeungjo_regular
-            ) -> binding.fontChangeLayout.myeungJo.setTextColor(
+            "myeungjo" -> binding.fontChangeLayout.myeungJo.setTextColor(
                 ContextCompat.getColor(
                     this@MainActivity,
                     R.color.orange_color
@@ -247,6 +271,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         pickit = PickiT(this, this, this)
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN)
         params = window.attributes // 현재 밝기 정보 가져오기
+        intentUri = intent.getStringExtra(URI_DATA) ?: return
     }
 
     // 최초 퍼미션 요청
@@ -365,25 +390,29 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         // 글자 폰트
         binding.fontChangeLayout.serif.setOnClickListener {
             fontChangeColor("serif")
+            adapter.notifyDataSetChanged()
         }
 
         binding.fontChangeLayout.gamja.setOnClickListener {
             fontChangeColor("gamja")
+            adapter.notifyDataSetChanged()
         }
 
         binding.fontChangeLayout.gothic.setOnClickListener {
             fontChangeColor("gothic")
+            adapter.notifyDataSetChanged()
         }
 
         binding.fontChangeLayout.myeungJo.setOnClickListener {
             fontChangeColor("myeungjo")
+            adapter.notifyDataSetChanged()
         }
     }
 
-    private fun fontChangeColor(s: String) {
-        var typeFace:Typeface? = null
+    private fun fontChangeColor(font: String) {
+        var typeFace: Typeface? = null
 
-        when(s) {
+        when (font) {
             "serif" -> {
                 binding.fontChangeLayout.apply {
                     serif.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.orange_color))
@@ -423,10 +452,10 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
                 typeFace = getFont(this@MainActivity, R.font.nanum_myeungjo_regular)
             }
         }
+        textViewModel.fontType = font
 
         typeFace?.let {
             textViewModel.typeFace = it
-            adapter.notifyDataSetChanged()
         }
     }
 
@@ -521,11 +550,71 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
             binding.settingLayout.isVisible = true
 
             val heightAnimator = ObjectAnimator.ofFloat(
-                    binding.settingLayout,
-                    "y",
-                    settingLayoutBottom,
-                    settingLayoutTop).setDuration(500)
+                binding.settingLayout,
+                "y",
+                settingLayoutBottom,
+                settingLayoutTop
+            ).setDuration(200)
             heightAnimator.start()
+        }
+
+        binding.bookMarkButton.setOnClickListener { view ->
+            PopupMenu(this, view).apply {
+                setOnMenuItemClickListener(popupListener)
+                inflate(R.menu.bookmark_menu)
+                show()
+            }
+        }
+    }
+
+    private val popupListener = PopupMenu.OnMenuItemClickListener { menu ->
+        when (menu.itemId) {
+            R.id.go_bookmark -> {
+                val intent = Intent(this@MainActivity, BookMarkActivity::class.java)
+                startActivity(intent)
+                true
+            }
+            R.id.add_bookmark -> {
+                addBookmarkProcess()
+                true
+            }
+            else -> false
+        }
+    }
+
+    private fun addBookmarkProcess() {
+        val saveData = Data()
+        saveData.apply {
+            uri = textViewModel.contentUri.toString()
+            name = textViewModel.displayName
+            page = textViewModel.pagePosition
+            lineSpace = textViewModel.textLineSpacing
+            landData = data[textViewModel.pagePosition]
+            textSize = binding.textSizeCount.centerCount.text.sToInt()
+            textDimension = textViewModel.textSizeDimen
+            backgroundColor = textViewModel.backGroundColor
+            textColor = textViewModel.textColor
+            beforeDataSize = data.size
+            fontType = textViewModel.fontType
+        }
+
+        Log.d(TAG, "background color : ${saveData.backgroundColor}")
+        Log.d(TAG, "text color : ${saveData.textColor}")
+
+        val future = threadPoolManager.executorService.submit {
+            val check = textViewModel.getData(saveData.uri)
+            if (check == null) {
+                textViewModel.addData(saveData)
+            } else {
+                textViewModel.updateData(saveData)
+            }
+        }
+
+        try {
+            future.get()
+            Toast.makeText(this, "북마크에 추가되었습니다.", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Log.e(TAG, "${e.message}")
         }
     }
 
@@ -579,14 +668,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     }
 
     private fun changeLineSpacingRender(count: Int) {
-        val line: Float = when (count) {
-            1 -> resources.getDimension(R.dimen.lineSpacing1)
-            2 -> resources.getDimension(R.dimen.lineSpacing2)
-            3 -> resources.getDimension(R.dimen.lineSpacing3)
-            4 -> resources.getDimension(R.dimen.lineSpacing4)
-            else -> 0f
-        }
-        textViewModel.textLineSpacing = line
+        textViewModel.textLineSpacing = count - 1
         adapter.notifyDataSetChanged()
     }
 
@@ -672,14 +754,14 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
 
     private fun changeCountRender(count: Int) {
         when (count) {
-            1 -> changeRatio(R.dimen.textSizeS)
-            2 -> changeRatio(R.dimen.textSizeM)
-            3 -> changeRatio(R.dimen.textSizeL)
+            1 -> changeRatio(0)
+            2 -> changeRatio(1)
+            3 -> changeRatio(2)
         }
     }
 
     private fun changeRatio(dimen: Int) {
-        textViewModel.textSizeDimen = resources.getDimension(dimen)
+        textViewModel.textSizeDimen = dimen
         textViewModel.beforeDataSize = data.size - 1
 
         textViewModel.contentUri ?: return
@@ -873,9 +955,6 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
                         // 제대로 uri 가 왔을 경우에 데이터 초기화.
                         dataRefresh(true)
                         val uri = result.data?.data!!
-                        Log.d(TAG, "uri : $uri")
-                        val contentUri = uri.path
-                        Log.d(TAG, "contentUri : $contentUri")
 
                         contentResolver.takePersistableUriPermission(
                             uri,
@@ -934,7 +1013,7 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
             this@MainActivity,
             data,
             searchViewVisibleListener = { setSearchVisible(it) },
-            setTextSizeListener = { textViewModel.textSizeDimen },
+            setTextSizeListener = { getTextDimen() },
             setColorChangeListener = { getBackTextColor() },
             setLineSpacingChangeListener = { getLineSpace() },
             setFontChangeListener = { getTypeFace() }
@@ -945,12 +1024,29 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         binding.titleTextView.text = textViewModel.displayName
     }
 
-    private fun getLineSpace() = textViewModel.textLineSpacing
+    private fun getTextDimen(): Float {
+        return when (textViewModel.textSizeDimen) {
+            0 -> resources.getDimension(R.dimen.textSizeS)
+            1 -> resources.getDimension(R.dimen.textSizeM)
+            2 -> resources.getDimension(R.dimen.textSizeL)
+            else -> throw IndexOutOfBoundsException("text size 범위 에러")
+        }
+    }
+
+    private fun getLineSpace(): Float {
+        return when (textViewModel.textLineSpacing) {
+            0 -> resources.getDimension(R.dimen.lineSpacing1)
+            1 -> resources.getDimension(R.dimen.lineSpacing2)
+            2 -> resources.getDimension(R.dimen.lineSpacing3)
+            3 -> resources.getDimension(R.dimen.lineSpacing4)
+            else -> throw IndexOutOfBoundsException("line spacing 범위 에러")
+        }
+    }
 
     private fun getBackTextColor(): Pair<Int, Int> =
         Pair(textViewModel.backGroundColor, textViewModel.textColor)
 
-    private fun getTypeFace():Typeface {
+    private fun getTypeFace(): Typeface {
         val typeface = textViewModel.typeFace
         return typeface!!
     }
@@ -1009,13 +1105,33 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
     }
 
     override fun onBackPressed() {
-        AlertDialog.Builder(this)
-            .setMessage("종료 하시겠습니까?")
-            .setPositiveButton("확인") { _, _ ->
-                super.onBackPressed()
-            }.setNegativeButton("취소") { _, _ -> }
-            .setCancelable(false)
-            .show()
+        if (binding.settingLayout.isVisible) {
+            settingLayoutAnimation()
+
+            mHandler.postDelayed({
+                binding.settingLayout.isVisible = false
+            }, 200)
+
+            binding.searchLayout.isVisible = true
+        } else {
+            AlertDialog.Builder(this)
+                .setMessage("종료 하시겠습니까?")
+                .setPositiveButton("확인") { _, _ ->
+                    super.onBackPressed()
+                }.setNegativeButton("취소") { _, _ -> }
+                .setCancelable(false)
+                .show()
+        }
+    }
+
+    private fun settingLayoutAnimation() {
+        val heightAnimator = ObjectAnimator.ofFloat(
+            binding.settingLayout,
+            "y",
+            settingLayoutTop,
+            settingLayoutBottom
+        ).setDuration(200)
+        heightAnimator.start()
     }
 
     override fun onStop() {
@@ -1044,8 +1160,9 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
             lineSpace = textViewModel.textLineSpacing
             textColor = textViewModel.textColor
             beforeDataSize = data.size - 1
-            typeFace = textViewModel.typeFace
+            fontType = textViewModel.fontType
         }
+
         PreferenceJsonUtil.putSaveObject(this, "data", saveData, PreferenceJsonUtil.SAVE_DATA)
     }
 
@@ -1058,5 +1175,13 @@ class MainActivity : AppCompatActivity(), PickiTCallbacks {
         binding.viewPager.unregisterOnPageChangeCallback(pageChangeListener)
         threadPoolManager.executorService.isShutdown
         super.onDestroy()
+    }
+
+    companion object {
+        fun newIntent(context: Context, uri: String): Intent {
+            return Intent(context, MainActivity::class.java).putExtra(URI_DATA, uri)
+        }
+
+        private const val URI_DATA = "uri"
     }
 }

@@ -5,4 +5,10 @@
         <item name="colorPrimary">?android:attr/textColorPrimary</item>
         <item name="colorAccent">@android:color/holo_orange_light</item>
     </style>
+
+    <style name="BookMarkTheme" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimaryDark">@color/dark_gray</item>
+        <item name="colorPrimary">?android:attr/textColorPrimary</item>
+        <item name="colorAccent">@android:color/holo_orange_light</item>
+    </style>
 </resources>

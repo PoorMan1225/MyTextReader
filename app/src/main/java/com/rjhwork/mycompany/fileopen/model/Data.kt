@@ -1,8 +1,15 @@
 package com.rjhwork.mycompany.fileopen.model
 
-data class SaveData(
-    var uri: String = "",
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+import java.util.*
+
+@Entity
+data class Data(
+    @PrimaryKey var uri:String = "",
+    var name:String = "",
     var page:Int = 0,
+    var date: Date = Date(),
     var landData:String = "",
     var textSize:Int = 1,
     var textDimension:Int = 0,

@@ -13,7 +13,7 @@ class RotatePageSearchTask(
 ) : Runnable {
 
     private val split = textViewModel.currentPageData.split("\n")
-    private val list = split.filter { (it.isNotEmpty() && it.isNotBlank() && it.length > 6) }
+    private val list = split.filter { (it.isNotEmpty() && it.isNotBlank() && it.length > 3) }
 
     override fun run() {
 
@@ -63,33 +63,6 @@ class RotatePageSearchTask(
         }
         Log.d(TAG, "containList: $containList")
         textViewModel.pagePosition = containList[position]
-//        val tempList = mutableListOf<Int>()
-//        while (containList.size > 1) {
-//            containList.forEach {
-//                val data = data[it].replace("\n", "")
-//                Log.d(TAG, "data : $data")
-//                val sp = if (list[idx].trim().length > textViewModel.textCount)
-//                    list[idx].trim().substring(0, (textViewModel.textCount + 1).toInt())
-//                 else
-//                    list[idx].trim()
-//                val check = data.contains(sp)
-//                if (check) {
-//                    tempList.add(it)
-//                }
-//            }
-//            containList.clear()
-//            containList += tempList
-//            tempList.clear()
-//            idx++
-//
-//            if(idx >= list.size) {
-//
-//                return
-//            }
-//        }
-//        Log.d(TAG, "containList Size : ${containList.size}")
-//        Log.d(TAG, "page : ${containList[0]}")
-//        textViewModel.pagePosition = containList[0]
     }
 
     private fun checkProcess(
