@@ -23,6 +23,8 @@ class TextSplitThread(
 
     companion object {
         const val MESSAGE_TEXT_TYPE = 1001
+        var saveSB = StringBuilder()
+        var saveCount = 0f
     }
 
     override fun run() {
@@ -127,31 +129,53 @@ class TextSplitThread(
         line: String,
         textViewModel: TextViewModel
     ): MutableList<String> {
-        val sb = StringBuilder()
+        var getLine = line
         val lineList = mutableListOf<String>()
-        var count = 0f
+
+        if(getLine.isNotEmpty()
+            && getLine.length <= textViewModel.textCount
+            && saveSB.isEmpty()
+        ) {
+            lineList.add("$getLine\n")
+            return lineList
+        }
+
+        Log.d(TAG, "saveSB : ${saveSB.toString()}")
+
+        var count = if (saveSB.isNotEmpty()) saveCount else 0f
+        val sb = getSaveStringBuilder()
+
+
+        Log.d(TAG, "line : $getLine")
+
+        if (getLine.isEmpty() && sb.isNotEmpty()) {
+            getLine = sb.toString()
+            sb.clear()
+            count = 0f
+        }
 
         var i = 0
-        while (i < line.length) {
-            val c = line[i]
+        while (i < getLine.length) {
+            val c = getLine[i]
             count += checkWidth(c)
 
-            if (i == line.length - 1) {
-                sb.append(c).append("\n")
-                lineList.add(sb.toString())
+            if (i == getLine.length - 1) {
+                if (i <= textViewModel.textCount) {
+                    sb.append(c).append("\n")
+                    lineList.add(sb.toString())
+                } else {
+                    sb.append(c)
+                    saveSB.append(sb.toString())
+                    saveCount = count
+                }
                 break
             }
-            sb.append(c)
 
-            if (c == '\n') {
-                lineList.add(sb.toString())
-                sb.clear()
-                count = 0f
-            }
+            sb.append(c)
 
             if (count >= textViewModel.textCount) {
                 count = 0f
-                val l = line[i+1]
+                val l = getLine[i + 1]
                 if (l == '.' || l == '!' || l == '?' || l == '"' || l == '“' || l == ',') {
                     sb.append(l).append("\n")
                     i += 1
@@ -169,11 +193,21 @@ class TextSplitThread(
     private fun checkWidth(c: Char): Float {
         return when {
             ((c in 'a'..'z') || (c in '0'..'9') || (c in 'A'..'Z') || c == '^' || c == '~') -> 0.63f
-            (c == '*' || c == '_' || c == '-' || c == '+' || c == '"' || c == ' ' || c == '?' || c == '/' || c == '”') -> 0.63f
-            (c == ',' || c =='\'' || c == '`' || c == '.' || c == ':' || c == ';' || c == '|') -> 0.23f
+            (c == '*' || c == '_' || c == '-' || c == '+' || c == '"' || c == ' ' || c == '?' || c == '/' || c == '”') -> 0.84f
+            (c == ',' || c == '\'' || c == '`' || c == '.' || c == ':' || c == ';' || c == '|') -> 0.23f
             (c == '!' || c == '(' || c == ')' || c == '{' || c == '}' || c == '[' || c == ']') -> 0.33f
             (c == '─') -> 1.1f
             else -> 1.0f
+        }
+    }
+
+    private fun getSaveStringBuilder(): StringBuilder {
+        return if (saveSB.isNotEmpty()) {
+            val sb = StringBuilder().append(saveSB.toString())
+            saveSB.clear()
+            sb
+        } else {
+            StringBuilder()
         }
     }
 }
